@@ -1,0 +1,45 @@
+{{- /* helm test <release>: the daemon answers /readyz through its Service. */}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "mcp-compendium.fullname" . }}-test
+  labels:
+    {{- include "mcp-compendium.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: readyz
+      image: {{ .Values.test.image | quote }}
+      args:
+        - --fail
+        - --silent
+        - --show-error
+        - --retry
+        - "10"
+        - --retry-all-errors
+        - --retry-delay
+        - "3"
+        - http://{{ include "mcp-compendium.fullname" . }}:{{ .Values.service.port }}/readyz
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          memory: 32Mi

@@ -1,0 +1,235 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+output:
+  sort-order:
+    - file
+    - linter
+
+linters:
+  default: standard
+  enable:
+    # Declaration order: types, consts, vars, then exported before unexported functions and methods.
+    - decorder
+    - funcorder
+    # Correctness.
+    - bodyclose
+    - containedctx
+    - contextcheck
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - err113
+    - exhaustive
+    - fatcontext
+    - forcetypeassert
+    - gochecknoglobals
+    - gochecknoinits
+    - gosec
+    - makezero
+    - nilerr
+    - nilnil
+    - noctx
+    - recvcheck
+    - spancheck
+    - wrapcheck
+    # Style and clarity.
+    - canonicalheader
+    - dupword
+    - exptostd
+    - gocritic
+    - godot
+    - goconst
+    - intrange
+    - lll
+    - mirror
+    - misspell
+    - nakedret
+    - nolintlint
+    - nonamedreturns
+    - perfsprint
+    - prealloc
+    - predeclared
+    - revive
+    - sloglint
+    - unconvert
+    - unparam
+    - usestdlibvars
+    # Complexity.
+    - cyclop
+    - gocognit
+    - nestif
+    # Tests.
+    - thelper
+    - tparallel
+    - usetesting
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      # An explicit `_ =` is a reviewed decision to discard an error, such as a failed write to a closed HTTP response.
+      check-blank: false
+    govet:
+      enable-all: true
+      disable:
+        # Field order follows readability; no struct is allocated in bulk.
+        - fieldalignment
+    staticcheck:
+      checks:
+        - all
+    decorder:
+      dec-order:
+        - type
+        - const
+        - var
+        - func
+      disable-dec-order-check: false
+      disable-init-func-first-check: false
+      disable-dec-num-check: false
+      # Each type keeps its own declaration and doc comment; consts and vars are still grouped into one block.
+      disable-type-dec-num-check: true
+    funcorder:
+      constructor: true
+      struct-method: true
+      function: true
+    wrapcheck:
+      # Errors from this module's own packages already carry context; only third-party errors must be wrapped.
+      ignore-package-globs:
+        - github.com/steelshot/mcp-compendium/*
+    exhaustive:
+      default-signifies-exhaustive: false
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        # Conflicts with govet's shadow check; reassigning err is preferred to shadowing it.
+        - sloppyReassign
+    godot:
+      scope: declarations
+      # Doc comments on unexported identifiers start with the lower-case identifier, per Go convention.
+      capital: false
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+      ignore-calls: true
+    lll:
+      line-length: 160
+      tab-width: 4
+    misspell:
+      # No locale: Oxford spelling (-ize, -yse) matches neither the US nor the UK locale.
+      # Check prose only: identifiers from US-English dependencies (Standardize, Initialize) cannot be renamed.
+      mode: restricted
+    nakedret:
+      max-func-lines: 0
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+    sloglint:
+      attr-only: true
+      no-global: all
+      context: scope
+      static-msg: true
+      key-naming-case: camel
+    revive:
+      enable-all-rules: false
+      rules:
+        - name: blank-imports
+        - name: bool-literal-in-expr
+        - name: confusing-results
+        - name: constant-logical-expr
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: datarace
+        - name: deep-exit
+        - name: defer
+        - name: dot-imports
+        - name: early-return
+        - name: empty-block
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported
+        - name: identical-branches
+        - name: if-return
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: modifies-value-receiver
+        - name: package-comments
+        - name: range
+        - name: range-val-address
+        - name: range-val-in-closure
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: redundant-import-alias
+        - name: superfluous-else
+        - name: time-equal
+        - name: time-naming
+        - name: unconditional-recursion
+        - name: unexported-return
+        - name: unnecessary-stmt
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: unused-receiver
+        - name: use-any
+        - name: useless-break
+        - name: var-declaration
+        - name: var-naming
+        - name: waitgroup-by-value
+    cyclop:
+      max-complexity: 15
+    gocognit:
+      min-complexity: 20
+    nestif:
+      min-complexity: 4
+
+  exclusions:
+    generated: strict
+    presets: [ ]
+    rules:
+      # Tests build ad hoc errors and fixtures; the production error-handling rules add noise without value there.
+      - path: _test\.go
+        linters:
+          - err113
+          - wrapcheck
+          - gosec
+          - goconst
+          - cyclop
+          - gocognit
+      # Settings files declare exported Str/Env/Def constants whose names are self-describing.
+      - path: settings\.go
+        linters:
+          - revive
+        text: "exported: exported const"
+
+formatters:
+  enable:
+    - gofumpt
+    - gci
+    - golines
+  settings:
+    gofumpt:
+      extra:
+        group-params: true
+        clothe-returns: true
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/steelshot/mcp-compendium)
+    golines:
+      max-len: 160
+      tab-len: 4
+  exclusions:
+    generated: strict
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

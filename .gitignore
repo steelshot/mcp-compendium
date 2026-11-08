@@ -1,0 +1,9 @@
+# Binary from go build ./cmd/mcpcd.
+/mcpcd
+/mcpcd.exe
+# Output of a local GoReleaser build (goreleaser release --snapshot).
+/dist/
+# JetBrains IDE project files.
+/.idea/
+# Created by helm unittest.
+/helm/tests/__snapshot__/

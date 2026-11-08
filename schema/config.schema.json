@@ -1,0 +1,432 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://raw.githubusercontent.com/steelshot/mcp-compendium/main/schema/config.schema.json",
+	"title": "mcp-compendium configuration",
+	"description": "Downstream MCP servers and inbound authentication for mcp-compendium. String values may contain ${env:NAME}, ${env:NAME:-default} and ${file:/path} placeholders; $${ escapes a literal ${.",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string"
+		},
+		"servers": {
+			"description": "Downstream MCP servers keyed by name. Names identify servers to agents, so keep them short and descriptive.",
+			"type": "object",
+			"propertyNames": {
+				"pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"
+			},
+			"additionalProperties": {
+				"$ref": "#/$defs/server"
+			}
+		},
+		"auth": {
+			"$ref": "#/$defs/auth"
+		}
+	},
+	"$defs": {
+		"stringList": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"minLength": 1
+			}
+		},
+		"stringMap": {
+			"type": "object",
+			"additionalProperties": {
+				"type": "string"
+			}
+		},
+		"duration": {
+			"description": "A Go duration such as 30s, 5m or 1h30m.",
+			"type": "string",
+			"pattern": "^(([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+|.*\\$\\{(env|file):[^}]+\\}.*)$"
+		},
+		"roles": {
+			"type": "array",
+			"minItems": 1,
+			"uniqueItems": true,
+			"items": {
+				"enum": [
+					"user",
+					"admin"
+				]
+			}
+		},
+		"server": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"type"
+			],
+			"properties": {
+				"type": {
+					"description": "stdio runs a local command; http is Streamable HTTP; sse is the deprecated 2024-11-05 transport.",
+					"enum": [
+						"stdio",
+						"http",
+						"sse"
+					]
+				},
+				"enabled": {
+					"type": "boolean",
+					"default": true
+				},
+				"description": {
+					"description": "One or two sentences telling agents what the server is for. Defaults to the server's own title and instructions.",
+					"type": "string"
+				},
+				"command": {
+					"type": "string",
+					"minLength": 1
+				},
+				"args": {
+					"$ref": "#/$defs/stringList"
+				},
+				"env": {
+					"description": "Extra environment for the command. Only a small allow-list of the daemon's own environment is inherited.",
+					"$ref": "#/$defs/stringMap"
+				},
+				"cwd": {
+					"type": "string",
+					"minLength": 1
+				},
+				"url": {
+					"type": "string",
+					"pattern": "^(https?://\\S+|.*\\$\\{(env|file):[^}]+\\}.*)$"
+				},
+				"headers": {
+					"$ref": "#/$defs/stringMap"
+				},
+				"tools": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"include": {
+							"description": "Glob patterns; when present, only matching tools are exposed.",
+							"$ref": "#/$defs/stringList"
+						},
+						"exclude": {
+							"description": "Glob patterns removing tools; exclude wins over include.",
+							"$ref": "#/$defs/stringList"
+						},
+						"readOnly": {
+							"description": "Expose only tools annotated read-only.",
+							"type": "boolean",
+							"default": false
+						}
+					}
+				},
+				"limits": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"maxResultBytes": {
+							"description": "Truncate text results above this size.",
+							"type": "integer",
+							"minimum": 1024
+						},
+						"startupTimeout": {
+							"$ref": "#/$defs/duration"
+						},
+						"executionTimeout": {
+							"$ref": "#/$defs/duration"
+						}
+					}
+				},
+				"isolation": {
+					"description": "shared uses one connection for every client; session gives each client session its own connection.",
+					"enum": [
+						"shared",
+						"session"
+					],
+					"default": "shared"
+				},
+				"oauth": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"clientId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"clientSecret": {
+							"type": "string",
+							"minLength": 1
+						},
+						"scopes": {
+							"$ref": "#/$defs/stringList"
+						}
+					}
+				}
+			},
+			"if": {
+				"properties": {
+					"type": {
+						"const": "stdio"
+					}
+				}
+			},
+			"then": {
+				"required": [
+					"command"
+				],
+				"properties": {
+					"url": false,
+					"headers": false,
+					"oauth": false
+				}
+			},
+			"else": {
+				"required": [
+					"url"
+				],
+				"properties": {
+					"command": false,
+					"args": false,
+					"env": false,
+					"cwd": false
+				}
+			}
+		},
+		"auth": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"allowAnonymous": {
+					"description": "Grant unauthenticated requests both roles. Required when listening on a non-loopback address without providers.",
+					"type": "boolean",
+					"default": false
+				},
+				"providers": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/provider"
+					}
+				}
+			}
+		},
+		"provider": {
+			"type": "object",
+			"required": [
+				"name",
+				"type"
+			],
+			"properties": {
+				"name": {
+					"type": "string",
+					"pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"
+				},
+				"type": {
+					"enum": [
+						"basic",
+						"bearer",
+						"jwt"
+					]
+				}
+			},
+			"allOf": [
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"const": "basic"
+							}
+						}
+					},
+					"then": {
+						"$ref": "#/$defs/basicProvider"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"const": "bearer"
+							}
+						}
+					},
+					"then": {
+						"$ref": "#/$defs/bearerProvider"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"const": "jwt"
+							}
+						}
+					},
+					"then": {
+						"$ref": "#/$defs/jwtProvider"
+					}
+				}
+			]
+		},
+		"basicProvider": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"name",
+				"type",
+				"users"
+			],
+			"properties": {
+				"name": true,
+				"type": {
+					"const": "basic"
+				},
+				"users": {
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"type": "object",
+						"additionalProperties": false,
+						"required": [
+							"username",
+							"passwordHash",
+							"roles"
+						],
+						"properties": {
+							"username": {
+								"type": "string",
+								"minLength": 1
+							},
+							"passwordHash": {
+								"type": "string",
+								"minLength": 1,
+								"description": "bcrypt hash of the password, cost 10 or more, as printed by mcpcd config hash-password. Plaintext passwords are not accepted."
+							},
+							"roles": {
+								"$ref": "#/$defs/roles"
+							}
+						}
+					}
+				}
+			}
+		},
+		"bearerProvider": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"name",
+				"type",
+				"tokens"
+			],
+			"properties": {
+				"name": true,
+				"type": {
+					"const": "bearer"
+				},
+				"tokens": {
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"type": "object",
+						"additionalProperties": false,
+						"required": [
+							"token",
+							"roles"
+						],
+						"properties": {
+							"subject": {
+								"description": "Principal name used in logs and login links. Defaults to the provider name.",
+								"type": "string",
+								"minLength": 1
+							},
+							"token": {
+								"type": "string",
+								"minLength": 1,
+								"description": "At least 32 characters once placeholders are resolved; generate with: openssl rand -hex 32."
+							},
+							"roles": {
+								"$ref": "#/$defs/roles"
+							}
+						}
+					}
+				}
+			}
+		},
+		"jwtProvider": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"name",
+				"type",
+				"issuer",
+				"audiences",
+				"grants"
+			],
+			"properties": {
+				"name": true,
+				"type": {
+					"const": "jwt"
+				},
+				"issuer": {
+					"type": "string",
+					"pattern": "^(https?://\\S+|.*\\$\\{(env|file):[^}]+\\}.*)$"
+				},
+				"audiences": {
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"type": "string",
+						"minLength": 1
+					}
+				},
+				"subjectClaim": {
+					"type": "string",
+					"minLength": 1,
+					"default": "sub"
+				},
+				"jwks": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"url": {
+							"description": "Overrides the jwks_uri from OIDC discovery.",
+							"type": "string",
+							"pattern": "^(https?://\\S+|.*\\$\\{(env|file):[^}]+\\}.*)$"
+						},
+						"caFile": {
+							"type": "string",
+							"minLength": 1
+						},
+						"bearerTokenFile": {
+							"description": "Token sent when fetching discovery and keys, for issuers such as the Kubernetes API server.",
+							"type": "string",
+							"minLength": 1
+						}
+					}
+				},
+				"grants": {
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"type": "object",
+						"additionalProperties": false,
+						"required": [
+							"match",
+							"roles"
+						],
+						"properties": {
+							"match": {
+								"description": "Claim name to glob pattern; every entry must match. String array claims match when any element matches.",
+								"type": "object",
+								"minProperties": 1,
+								"additionalProperties": {
+									"type": "string",
+									"minLength": 1
+								}
+							},
+							"roles": {
+								"$ref": "#/$defs/roles"
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

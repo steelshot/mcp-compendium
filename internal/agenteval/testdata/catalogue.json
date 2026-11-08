@@ -1,0 +1,797 @@
+{
+	"servers": {
+		"github": {
+			"description": "GitHub repositories, issues, pull requests and commits.",
+			"tools": [
+				{
+					"name": "search_repositories",
+					"readOnly": true,
+					"description": "Search for GitHub repositories by name, description, topic or owner. Returns repository names, descriptions, star counts and URLs.",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Search query using GitHub repository search syntax"
+						},
+						"page": {
+							"type": "integer",
+							"description": "Page number for pagination"
+						},
+						"perPage": {
+							"type": "integer",
+							"description": "Results per page, at most 100"
+						}
+					},
+					"required": [
+						"query"
+					]
+				},
+				{
+					"name": "get_file_contents",
+					"readOnly": true,
+					"description": "Get the contents of a file or directory from a GitHub repository at a branch, tag or commit.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"path": {
+							"type": "string",
+							"description": "Path to the file or directory"
+						},
+						"ref": {
+							"type": "string",
+							"description": "Branch, tag or commit SHA"
+						}
+					},
+					"required": [
+						"owner",
+						"repo",
+						"path"
+					]
+				},
+				{
+					"name": "create_or_update_file",
+					"description": "Create a new file or update an existing file in a GitHub repository with a commit. Updating requires the SHA of the file being replaced.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"path": {
+							"type": "string",
+							"description": "Path where to create or update the file"
+						},
+						"content": {
+							"type": "string",
+							"description": "New file content"
+						},
+						"message": {
+							"type": "string",
+							"description": "Commit message"
+						},
+						"branch": {
+							"type": "string",
+							"description": "Branch to commit to"
+						},
+						"sha": {
+							"type": "string",
+							"description": "SHA of the file being replaced, required for updates"
+						}
+					},
+					"required": [
+						"owner",
+						"repo",
+						"path",
+						"content",
+						"message",
+						"branch"
+					]
+				},
+				{
+					"name": "list_issues",
+					"readOnly": true,
+					"description": "List issues in a GitHub repository, filtered by state, labels, assignee or sort order.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"state": {
+							"type": "string",
+							"enum": [
+								"open",
+								"closed",
+								"all"
+							],
+							"description": "Filter by state"
+						},
+						"labels": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "Filter by labels"
+						},
+						"perPage": {
+							"type": "integer",
+							"description": "Results per page"
+						}
+					},
+					"required": [
+						"owner",
+						"repo"
+					]
+				},
+				{
+					"name": "get_issue",
+					"readOnly": true,
+					"description": "Get the details of a specific issue in a GitHub repository, including its body, labels and state.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"issue_number": {
+							"type": "integer",
+							"description": "Issue number"
+						}
+					},
+					"required": [
+						"owner",
+						"repo",
+						"issue_number"
+					]
+				},
+				{
+					"name": "create_issue",
+					"description": "Create a new issue in a GitHub repository with a title, body, labels and assignees.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"title": {
+							"type": "string",
+							"description": "Issue title"
+						},
+						"body": {
+							"type": "string",
+							"description": "Issue body in Markdown"
+						},
+						"labels": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "Labels to apply"
+						},
+						"assignees": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "Usernames to assign"
+						}
+					},
+					"required": [
+						"owner",
+						"repo",
+						"title"
+					]
+				},
+				{
+					"name": "update_issue",
+					"description": "Update an existing issue in a GitHub repository: title, body, state, labels or assignees.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"issue_number": {
+							"type": "integer",
+							"description": "Issue number"
+						},
+						"title": {
+							"type": "string",
+							"description": "New title"
+						},
+						"body": {
+							"type": "string",
+							"description": "New body"
+						},
+						"state": {
+							"type": "string",
+							"enum": [
+								"open",
+								"closed"
+							],
+							"description": "New state"
+						}
+					},
+					"required": [
+						"owner",
+						"repo",
+						"issue_number"
+					]
+				},
+				{
+					"name": "add_issue_comment",
+					"description": "Add a comment to an existing issue or pull request in a GitHub repository.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"issue_number": {
+							"type": "integer",
+							"description": "Issue or pull request number"
+						},
+						"body": {
+							"type": "string",
+							"description": "Comment text in Markdown"
+						}
+					},
+					"required": [
+						"owner",
+						"repo",
+						"issue_number",
+						"body"
+					]
+				},
+				{
+					"name": "list_pull_requests",
+					"readOnly": true,
+					"description": "List pull requests in a GitHub repository, filtered by state, head or base branch.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"state": {
+							"type": "string",
+							"enum": [
+								"open",
+								"closed",
+								"all"
+							],
+							"description": "Filter by state"
+						},
+						"base": {
+							"type": "string",
+							"description": "Filter by base branch"
+						}
+					},
+					"required": [
+						"owner",
+						"repo"
+					]
+				},
+				{
+					"name": "create_pull_request",
+					"description": "Create a new pull request in a GitHub repository from a head branch into a base branch.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"title": {
+							"type": "string",
+							"description": "Pull request title"
+						},
+						"head": {
+							"type": "string",
+							"description": "Branch containing the changes"
+						},
+						"base": {
+							"type": "string",
+							"description": "Branch to merge into"
+						},
+						"body": {
+							"type": "string",
+							"description": "Pull request description"
+						},
+						"draft": {
+							"type": "boolean",
+							"description": "Create as a draft"
+						}
+					},
+					"required": [
+						"owner",
+						"repo",
+						"title",
+						"head",
+						"base"
+					]
+				},
+				{
+					"name": "merge_pull_request",
+					"description": "Merge a pull request in a GitHub repository using a merge, squash or rebase strategy.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"pullNumber": {
+							"type": "integer",
+							"description": "Pull request number"
+						},
+						"merge_method": {
+							"type": "string",
+							"enum": [
+								"merge",
+								"squash",
+								"rebase"
+							],
+							"description": "Merge strategy"
+						}
+					},
+					"required": [
+						"owner",
+						"repo",
+						"pullNumber"
+					]
+				},
+				{
+					"name": "list_commits",
+					"readOnly": true,
+					"description": "List commits on a branch of a GitHub repository, newest first, with authors and messages.",
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Repository owner"
+						},
+						"repo": {
+							"type": "string",
+							"description": "Repository name"
+						},
+						"sha": {
+							"type": "string",
+							"description": "Branch name or commit SHA to start from"
+						},
+						"perPage": {
+							"type": "integer",
+							"description": "Results per page"
+						}
+					},
+					"required": [
+						"owner",
+						"repo"
+					]
+				}
+			]
+		},
+		"filesystem": {
+			"description": "Read and write files in the directories mounted into the daemon.",
+			"tools": [
+				{
+					"name": "read_file",
+					"readOnly": true,
+					"description": "Read the complete contents of a file from the file system as text.",
+					"properties": {
+						"path": {
+							"type": "string",
+							"description": "Path of the file to read"
+						}
+					},
+					"required": [
+						"path"
+					]
+				},
+				{
+					"name": "read_multiple_files",
+					"readOnly": true,
+					"description": "Read the contents of several files at once, more efficient than reading them one by one.",
+					"properties": {
+						"paths": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "Paths of the files to read"
+						}
+					},
+					"required": [
+						"paths"
+					]
+				},
+				{
+					"name": "write_file",
+					"description": "Create a new file or completely overwrite an existing file with new content.",
+					"properties": {
+						"path": {
+							"type": "string",
+							"description": "Path of the file to write"
+						},
+						"content": {
+							"type": "string",
+							"description": "Content to write"
+						}
+					},
+					"required": [
+						"path",
+						"content"
+					]
+				},
+				{
+					"name": "edit_file",
+					"description": "Make line-based edits to a text file, replacing exact text matches, and return a git-style diff.",
+					"properties": {
+						"path": {
+							"type": "string",
+							"description": "Path of the file to edit"
+						},
+						"edits": {
+							"type": "array",
+							"items": {
+								"type": "object"
+							},
+							"description": "Edits as oldText and newText pairs"
+						},
+						"dryRun": {
+							"type": "boolean",
+							"description": "Preview the diff without writing"
+						}
+					},
+					"required": [
+						"path",
+						"edits"
+					]
+				},
+				{
+					"name": "list_directory",
+					"readOnly": true,
+					"description": "List the files and directories directly inside a directory, marked [FILE] or [DIR].",
+					"properties": {
+						"path": {
+							"type": "string",
+							"description": "Directory to list"
+						}
+					},
+					"required": [
+						"path"
+					]
+				},
+				{
+					"name": "directory_tree",
+					"readOnly": true,
+					"responseBytes": 200000,
+					"description": "Get a recursive tree view of files and directories as JSON.",
+					"properties": {
+						"path": {
+							"type": "string",
+							"description": "Root directory of the tree"
+						}
+					},
+					"required": [
+						"path"
+					]
+				},
+				{
+					"name": "search_files",
+					"readOnly": true,
+					"description": "Recursively search for files and directories whose names match a glob pattern.",
+					"properties": {
+						"path": {
+							"type": "string",
+							"description": "Directory to search from"
+						},
+						"pattern": {
+							"type": "string",
+							"description": "Glob pattern to match names against"
+						},
+						"excludePatterns": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "Patterns to skip"
+						}
+					},
+					"required": [
+						"path",
+						"pattern"
+					]
+				},
+				{
+					"name": "get_file_info",
+					"readOnly": true,
+					"description": "Retrieve metadata about a file or directory: size, creation and modification times, permissions and type.",
+					"properties": {
+						"path": {
+							"type": "string",
+							"description": "Path to inspect"
+						}
+					},
+					"required": [
+						"path"
+					]
+				}
+			]
+		},
+		"browser": {
+			"description": "Browser automation: navigate pages, interact with elements and capture screenshots.",
+			"tools": [
+				{
+					"name": "browser_navigate",
+					"description": "Navigate the browser to a URL.",
+					"properties": {
+						"url": {
+							"type": "string",
+							"description": "The URL to navigate to"
+						}
+					},
+					"required": [
+						"url"
+					]
+				},
+				{
+					"name": "browser_click",
+					"description": "Click an element on the current page.",
+					"properties": {
+						"element": {
+							"type": "string",
+							"description": "Human-readable description of the element"
+						},
+						"ref": {
+							"type": "string",
+							"description": "Exact element reference from the page snapshot"
+						}
+					},
+					"required": [
+						"element",
+						"ref"
+					]
+				},
+				{
+					"name": "browser_type",
+					"description": "Type text into an editable element such as an input field.",
+					"properties": {
+						"element": {
+							"type": "string",
+							"description": "Human-readable description of the element"
+						},
+						"ref": {
+							"type": "string",
+							"description": "Exact element reference from the page snapshot"
+						},
+						"text": {
+							"type": "string",
+							"description": "Text to type"
+						},
+						"submit": {
+							"type": "boolean",
+							"description": "Press Enter afterwards"
+						}
+					},
+					"required": [
+						"element",
+						"ref",
+						"text"
+					]
+				},
+				{
+					"name": "browser_snapshot",
+					"readOnly": true,
+					"description": "Capture an accessibility snapshot of the current page, which is better than a screenshot for finding elements to act on.",
+					"properties": {}
+				},
+				{
+					"name": "browser_take_screenshot",
+					"readOnly": true,
+					"description": "Take a screenshot of the current page or of one element.",
+					"properties": {
+						"fullPage": {
+							"type": "boolean",
+							"description": "Capture the full scrollable page"
+						},
+						"element": {
+							"type": "string",
+							"description": "Element to capture instead of the page"
+						}
+					}
+				},
+				{
+					"name": "browser_wait_for",
+					"readOnly": true,
+					"description": "Wait for text to appear or disappear, or for a number of seconds to pass.",
+					"properties": {
+						"text": {
+							"type": "string",
+							"description": "Text to wait for"
+						},
+						"textGone": {
+							"type": "string",
+							"description": "Text to wait to disappear"
+						},
+						"time": {
+							"type": "number",
+							"description": "Seconds to wait"
+						}
+					}
+				},
+				{
+					"name": "browser_close",
+					"description": "Close the browser page.",
+					"properties": {}
+				},
+				{
+					"name": "browser_tabs",
+					"description": "List, create, close or select browser tabs.",
+					"properties": {
+						"action": {
+							"type": "string",
+							"enum": [
+								"list",
+								"new",
+								"close",
+								"select"
+							],
+							"description": "Operation to perform"
+						},
+						"index": {
+							"type": "integer",
+							"description": "Tab index for close and select"
+						}
+					},
+					"required": [
+						"action"
+					]
+				}
+			]
+		},
+		"jira": {
+			"description": "Jira Cloud: search, create and update tickets in the team's projects.",
+			"tools": [
+				{
+					"name": "jira_search",
+					"readOnly": true,
+					"description": "Search Jira issues with JQL, the Jira Query Language.",
+					"properties": {
+						"jql": {
+							"type": "string",
+							"description": "JQL query, for example project = PROJ AND status = Open"
+						},
+						"fields": {
+							"type": "string",
+							"description": "Comma-separated fields to return"
+						},
+						"limit": {
+							"type": "integer",
+							"description": "Maximum results"
+						}
+					},
+					"required": [
+						"jql"
+					]
+				},
+				{
+					"name": "jira_get_issue",
+					"readOnly": true,
+					"description": "Get the details of a Jira issue by its key, including description, status and comments.",
+					"properties": {
+						"issue_key": {
+							"type": "string",
+							"description": "Issue key, for example PROJ-123"
+						}
+					},
+					"required": [
+						"issue_key"
+					]
+				},
+				{
+					"name": "jira_create_issue",
+					"description": "Create a new Jira issue in a project with a summary, description and issue type.",
+					"properties": {
+						"project_key": {
+							"type": "string",
+							"description": "Project key, for example PROJ"
+						},
+						"summary": {
+							"type": "string",
+							"description": "Issue summary"
+						},
+						"issue_type": {
+							"type": "string",
+							"description": "Issue type such as Bug, Task or Story"
+						},
+						"description": {
+							"type": "string",
+							"description": "Issue description"
+						}
+					},
+					"required": [
+						"project_key",
+						"summary",
+						"issue_type"
+					]
+				},
+				{
+					"name": "jira_add_comment",
+					"description": "Add a comment to a Jira issue.",
+					"properties": {
+						"issue_key": {
+							"type": "string",
+							"description": "Issue key, for example PROJ-123"
+						},
+						"comment": {
+							"type": "string",
+							"description": "Comment text"
+						}
+					},
+					"required": [
+						"issue_key",
+						"comment"
+					]
+				},
+				{
+					"name": "jira_transition_issue",
+					"description": "Transition a Jira issue to another status such as In Progress or Done.",
+					"properties": {
+						"issue_key": {
+							"type": "string",
+							"description": "Issue key, for example PROJ-123"
+						},
+						"transition": {
+							"type": "string",
+							"description": "Name of the transition or target status"
+						},
+						"comment": {
+							"type": "string",
+							"description": "Optional comment to add"
+						}
+					},
+					"required": [
+						"issue_key",
+						"transition"
+					]
+				},
+				{
+					"name": "jira_list_projects",
+					"readOnly": true,
+					"description": "List the Jira projects the user can access, with keys and names.",
+					"properties": {}
+				}
+			]
+		}
+	}
+}

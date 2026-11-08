@@ -1,0 +1,27 @@
+version = 1
+SPDX-PackageName = "mcp-compendium"
+SPDX-PackageDownloadLocation = "https://github.com/steelshot/mcp-compendium"
+
+# Files without a header of their own. Go source outside internal/admin/gen is not listed, so every other Go file
+# needs an SPDX header.
+[[annotations]]
+path = [
+    ".gitattributes",
+    ".gitignore",
+    ".golangci.yaml",
+    ".goreleaser.yaml",
+    ".release-please-manifest.json",
+    "release-please-config.json",
+    "go.mod",
+    "go.sum",
+    "openapi.yaml",
+    "*.md",
+    ".github/**",
+    "helm/**",
+    "images/**",
+    "schema/*.json",
+    "internal/admin/gen/**",
+    "internal/agenteval/testdata/**",
+]
+SPDX-FileCopyrightText = "Džiugas Eiva"
+SPDX-License-Identifier = "AGPL-3.0-only"

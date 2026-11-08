@@ -1,0 +1,269 @@
+openapi: 3.2.1
+info:
+  title: mcp-compendium admin API
+  version: 1.0.0
+  description: >-
+    Operational API of the mcp-compendium daemon, used by the mcpcd CLI. Every operation requires the admin role.
+    Errors are RFC 9457 problem documents.
+  license:
+    name: GNU Affero General Public License v3.0 only
+    identifier: AGPL-3.0-only
+servers:
+  - url: /admin/v1
+security:
+  - { }
+  - bearer: [ ]
+  - basic: [ ]
+tags:
+  - name: servers
+  - name: logins
+paths:
+  /servers:
+    get:
+      operationId: listServers
+      tags: [ servers ]
+      summary: List every enabled downstream server and its connection state.
+      responses:
+        "200":
+          description: Servers in name order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerList"
+        default:
+          $ref: "#/components/responses/Problem"
+  /servers/{server}:
+    get:
+      operationId: getServer
+      tags: [ servers ]
+      summary: Describe one server, including exposed and filtered tools.
+      parameters:
+        - $ref: "#/components/parameters/Server"
+      responses:
+        "200":
+          description: The server.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+  /servers/{server}/reconnect:
+    post:
+      operationId: reconnectServer
+      tags: [ servers ]
+      summary: Reconnect a server now, ignoring any cooldown.
+      parameters:
+        - $ref: "#/components/parameters/Server"
+      responses:
+        "200":
+          description: The server after the reconnect attempt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerStatus"
+        default:
+          $ref: "#/components/responses/Problem"
+  /servers/{server}/login:
+    post:
+      operationId: startLogin
+      tags: [ logins ]
+      summary: Start an OAuth login for a server.
+      description: >-
+        The daemon discovers the authorization server, registers a client if needed and returns the authorization URL.
+        The caller sends the user there and passes the redirect it receives to completeLogin.
+      parameters:
+        - $ref: "#/components/parameters/Server"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "201":
+          description: The login is waiting for the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Login"
+        default:
+          $ref: "#/components/responses/Problem"
+  /servers/{server}/credentials:
+    delete:
+      operationId: logout
+      tags: [ logins ]
+      summary: Delete the server's stored OAuth credential.
+      parameters:
+        - $ref: "#/components/parameters/Server"
+      responses:
+        "200":
+          description: Whether a credential existed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutResult"
+        default:
+          $ref: "#/components/responses/Problem"
+  /logins/{login}/complete:
+    post:
+      operationId: completeLogin
+      tags: [ logins ]
+      summary: Deliver the authorization server's redirect and exchange the code for tokens.
+      parameters:
+        - name: login
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginCallback"
+      responses:
+        "204":
+          description: The server is authorized and reconnecting.
+        default:
+          $ref: "#/components/responses/Problem"
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+    basic:
+      type: http
+      scheme: basic
+  parameters:
+    Server:
+      name: server
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    Problem:
+      description: An RFC 9457 problem document.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    Problem:
+      type: object
+      required: [ title, status ]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+    ServerList:
+      type: object
+      required: [ version, servers ]
+      properties:
+        version:
+          type: string
+          description: Daemon version.
+        servers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServerStatus"
+    ServerStatus:
+      type: object
+      required: [ name, transport, status, tools, filtered, authenticated ]
+      properties:
+        name:
+          type: string
+        transport:
+          type: string
+          enum: [ stdio, http, sse ]
+        status:
+          type: string
+          enum: [ connecting, ok, unauthorized, unavailable ]
+        description:
+          type: string
+        tools:
+          type: integer
+          description: Tools exposed to agents.
+        filtered:
+          type: integer
+          description: Tools hidden by the configuration.
+        authenticated:
+          type: boolean
+          description: Whether an OAuth credential is stored for the server's current URL.
+        lastError:
+          type: string
+        retryAt:
+          type: string
+          format: date-time
+    ServerDetail:
+      type: object
+      required: [ server, tools ]
+      properties:
+        server:
+          $ref: "#/components/schemas/ServerStatus"
+        tools:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tool"
+    Tool:
+      type: object
+      required: [ name, exposed ]
+      properties:
+        name:
+          type: string
+        exposed:
+          type: boolean
+        description:
+          type: string
+        hints:
+          type: array
+          items:
+            type: string
+    LoginRequest:
+      type: object
+      required: [ redirectUri ]
+      properties:
+        redirectUri:
+          type: string
+          description: Where the authorization server sends the user back, usually the CLI's loopback listener.
+    Login:
+      type: object
+      required: [ id, server, authorizationUrl, expiresAt ]
+      properties:
+        id:
+          type: string
+        server:
+          type: string
+        authorizationUrl:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    LoginCallback:
+      type: object
+      required: [ state ]
+      properties:
+        code:
+          type: string
+        state:
+          type: string
+        iss:
+          type: string
+        error:
+          type: string
+        errorDescription:
+          type: string
+    LogoutResult:
+      type: object
+      required: [ deleted ]
+      properties:
+        deleted:
+          type: boolean
