@@ -25,7 +25,7 @@ includes its provenance as `mcp-compendium-<version>.intoto.jsonl` and the signa
 
 <!-- x-release-please-start-version -->
 ```bash
-version=0.2.1
+version=0.3.0
 gh attestation verify "mcp-compendium-${version}-linux-x86_64.tar.xz" --repo steelshot/mcp-compendium
 gh attestation verify "mcp-compendium-${version}-linux-x86_64.tar.xz" --repo steelshot/mcp-compendium \
   --bundle "mcp-compendium-${version}.intoto.jsonl"
