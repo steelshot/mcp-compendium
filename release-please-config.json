@@ -54,6 +54,11 @@
 		}
 	],
 	"packages": {
-		".": {}
+		".": {
+			"extra-files": [
+				"README.md",
+				"SECURITY.md"
+			]
+		}
 	}
 }
