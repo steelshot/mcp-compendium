@@ -20,9 +20,11 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -30,19 +32,38 @@ import (
 	"github.com/steelshot/mcp-compendium/internal/server"
 )
 
-const healthcheckTimeout = 5 * time.Second
+const (
+	healthcheckTimeout = 5 * time.Second
+	// healthcheckInterval is the pause between probes while --wait has time left.
+	healthcheckInterval = 500 * time.Millisecond
+	// maxProbeBody bounds how much of a failed probe's response the error quotes, such as the readiness reason.
+	maxProbeBody = 512
 
-// newHealthcheckCommand probes /livez. The scratch image has no shell, wget or curl, so container health checks run
-// the binary itself.
+	flagReady = "ready"
+	flagWait  = "wait"
+)
+
+var errInvalidWait = errors.New("invalid wait")
+
+// newHealthcheckCommand probes /livez, or /readyz with --ready. The scratch image has no shell, wget or curl, so
+// container health checks and scripts waiting for the daemon run the binary itself.
 func newHealthcheckCommand(std streams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "healthcheck",
-		Short: "Exit non-zero unless the local daemon answers its liveness probe",
-		Args:  cobra.NoArgs,
+		Short: "Exit non-zero unless the local daemon answers its liveness or readiness probe",
+		Long: "Probes /livez, which answers while the daemon is responsive. --ready probes /readyz instead, which " +
+			"answers once every server has been tried. --wait keeps probing until the probe succeeds or the time is up.",
+		Args: cobra.NoArgs,
 	}
 	server.RegisterListen(cmd.Flags())
+	ready := cmd.Flags().Bool(flagReady, false, "probe readiness (/readyz) instead of liveness (/livez)")
+	wait := cmd.Flags().Duration(flagWait, 0, "keep probing for up to this long until the probe succeeds")
 
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		if *wait < 0 {
+			return fmt.Errorf("%w: --%s must not be negative", errInvalidWait, flagWait)
+		}
+
 		k, err := loadSettings(cmd.Flags(), std.environ, settingsModule{defaults: server.Defaults, envKeys: server.EnvKeys})
 		if err != nil {
 			return err
@@ -58,10 +79,33 @@ func newHealthcheckCommand(std streams) *cobra.Command {
 			return err
 		}
 
-		return probe(cmd.Context(), base+"/livez")
+		path := "/livez"
+		if *ready {
+			path = "/readyz"
+		}
+
+		return probeUntil(cmd.Context(), base+path, *wait)
 	}
 
 	return cmd
+}
+
+// probeUntil probes target until it succeeds or wait has passed, and returns the last failure.
+func probeUntil(ctx context.Context, target string, wait time.Duration) error {
+	deadline := time.Now().Add(wait)
+
+	for {
+		err := probe(ctx, target)
+		if err == nil || time.Now().Add(healthcheckInterval).After(deadline) {
+			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(healthcheckInterval):
+		}
+	}
 }
 
 func probe(ctx context.Context, target string) error {
@@ -80,9 +124,14 @@ func probe(ctx context.Context, target string) error {
 
 	defer func() { _ = resp.Body.Close() }()
 
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxProbeBody))
 	_, _ = io.Copy(io.Discard, resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
+		if reason := strings.TrimSpace(string(body)); reason != "" {
+			return fmt.Errorf("%w: %s returned %s: %s", errUnhealthy, target, resp.Status, reason)
+		}
+
 		return fmt.Errorf("%w: %s returned %s", errUnhealthy, target, resp.Status)
 	}
 
