@@ -25,13 +25,14 @@ includes its provenance as `mcp-compendium-<version>.intoto.jsonl` and the signa
 
 <!-- x-release-please-start-version -->
 ```bash
-gh attestation verify mcp-compendium-0.2.0-linux-x86_64.tar.xz --repo steelshot/mcp-compendium
-gh attestation verify mcp-compendium-0.2.0-linux-x86_64.tar.xz --repo steelshot/mcp-compendium \
-  --bundle mcp-compendium-0.2.0.intoto.jsonl
+version=0.2.1
+gh attestation verify "mcp-compendium-${version}-linux-x86_64.tar.xz" --repo steelshot/mcp-compendium
+gh attestation verify "mcp-compendium-${version}-linux-x86_64.tar.xz" --repo steelshot/mcp-compendium \
+  --bundle "mcp-compendium-${version}.intoto.jsonl"
 cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json \
   --certificate-identity-regexp '^https://github.com/steelshot/mcp-compendium/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
-cosign verify ghcr.io/steelshot/mcp-compendium/distroless:0.2.0 \
+cosign verify "ghcr.io/steelshot/mcp-compendium/distroless:${version}" \
   --certificate-identity-regexp '^https://github.com/steelshot/mcp-compendium/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
