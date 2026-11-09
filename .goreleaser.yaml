@@ -19,8 +19,12 @@ builds:
       - -X github.com/steelshot/mcp-compendium/internal/app.version={{ .Version }}
       - -X github.com/steelshot/mcp-compendium/internal/app.commit={{ .FullCommit }}
       - -X github.com/steelshot/mcp-compendium/internal/app.date={{ .CommitDate }}
-    goos: [ linux, windows ]
+    goos: [ linux, windows, darwin ]
     goarch: [ amd64, arm64 ]
+    ignore:
+      # macOS binaries are for Apple Silicon only.
+      - goos: darwin
+        goarch: amd64
     # Reproducible builds: file times come from the commit, not the build machine.
     mod_timestamp: "{{ .CommitTimestamp }}"
 
@@ -30,7 +34,7 @@ archives:
       - goos: windows
         formats: [ zip ]
     name_template: >-
-      {{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end }}
+      {{ .ProjectName }}-{{ .Version }}-{{ if eq .Os "darwin" }}macos{{ else }}{{ .Os }}{{ end }}-{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end }}
     builds_info:
       mtime: "{{ .CommitDate }}"
     files:

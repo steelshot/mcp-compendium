@@ -118,9 +118,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { platform: linux-x86_64, runner: ubuntu-26.04 }
-          - { platform: linux-arm64, runner: ubuntu-26.04-arm }
-          - { platform: windows-x86_64, runner: windows-2025 }
+          - { platform: linux-x86_64, runner: ubuntu-26.04, race: true }
+          - { platform: linux-arm64, runner: ubuntu-26.04-arm, race: true }
+          - { platform: windows-x86_64, runner: windows-2025, race: true }
+          # The race detector does not support windows/arm64.
+          - { platform: windows-arm64, runner: windows-11-arm, race: false }
+          - { platform: macos-arm64, runner: macos-26, race: true }
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -134,7 +137,9 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Test
-        run: go test -race -count=1 ./...
+        env:
+          GOFLAGS: ${{ matrix.race && '-race' || '' }}
+        run: go test -count=1 ./...
 
   generated:
     name: Generated code and modules

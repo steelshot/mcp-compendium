@@ -458,6 +458,9 @@ func startDaemonWith(t *testing.T, configPath string, adjust func(*daemonSetting
 	go func() { done <- runDaemon(ctx, &settings, logging.Discard(), listening) }()
 
 	t.Cleanup(func() {
+		// The transport can leave a dialled but unused connection in its idle pool. The server counts such a connection
+		// as active for its first five seconds, so graceful shutdown would wait for it.
+		http.DefaultClient.CloseIdleConnections()
 		cancel()
 
 		if err := <-done; err != nil {
