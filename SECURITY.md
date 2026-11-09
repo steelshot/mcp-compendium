@@ -23,14 +23,16 @@ Actions); archives, images and the chart carry build provenance, and images SBOM
 includes its provenance as `mcp-compendium-<version>.intoto.jsonl` and the signature of `checksums.txt` as
 `checksums.txt.sigstore.json`, for offline verification:
 
+<!-- x-release-please-start-version -->
 ```bash
-gh attestation verify mcp-compendium-0.1.0-linux-x86_64.tar.xz --repo steelshot/mcp-compendium
-gh attestation verify mcp-compendium-0.1.0-linux-x86_64.tar.xz --repo steelshot/mcp-compendium \
-  --bundle mcp-compendium-0.1.0.intoto.jsonl
+gh attestation verify mcp-compendium-0.2.0-linux-x86_64.tar.xz --repo steelshot/mcp-compendium
+gh attestation verify mcp-compendium-0.2.0-linux-x86_64.tar.xz --repo steelshot/mcp-compendium \
+  --bundle mcp-compendium-0.2.0.intoto.jsonl
 cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json \
   --certificate-identity-regexp '^https://github.com/steelshot/mcp-compendium/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
-cosign verify ghcr.io/steelshot/mcp-compendium/distroless:0.1.0 \
+cosign verify ghcr.io/steelshot/mcp-compendium/distroless:0.2.0 \
   --certificate-identity-regexp '^https://github.com/steelshot/mcp-compendium/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
+<!-- x-release-please-end -->

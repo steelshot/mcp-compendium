@@ -339,16 +339,19 @@ Multi-architecture (amd64, arm64) OCI images are signed with Cosign and carry pr
 
 | Tag                 | Follows                                                         |
 |---------------------|-----------------------------------------------------------------|
-| `0.1.0`, `0.1`, `0` | A release, or the newest release of that minor or major version |
+| `X.Y.Z`, `X.Y`, `X` | A release, or the newest release of that minor or major version |
 | `latest`            | The newest release                                              |
 
 Both run as UID 65532 with a read-only root filesystem, read configuration from `/etc/mcp-compendium` and write state
-to `/var/lib/mcp-compendium`. Base image updates are released as patch versions. The images contain no MCP servers, so
-their dependencies and vulnerabilities stay yours to choose. Derive from `minimal` to add them, pinning exact versions
-so rebuilds are reproducible:
+to `/var/lib/mcp-compendium`. The distroless image has no shell, so health checks and `podman exec` must run
+`/usr/local/bin/mcpcd` directly, in exec form. Base image updates are released as patch versions. The images contain
+no MCP servers, so their dependencies and vulnerabilities stay yours to choose. Derive from `minimal` to add them,
+pinning exact versions so rebuilds are reproducible:
 
 ```dockerfile
-FROM ghcr.io/steelshot/mcp-compendium/minimal:0.1.0
+# x-release-please-start-version
+FROM ghcr.io/steelshot/mcp-compendium/minimal:0.2.0
+# x-release-please-end
 USER root
 RUN apk add --no-cache nodejs npm && \
     npm install --global --omit=dev --no-audit --no-fund @modelcontextprotocol/server-filesystem@2.2.0 && \
@@ -362,10 +365,12 @@ from source: they download the release archive for the target architecture and v
 context is empty (see [`images/.containerignore`](images/.containerignore)).
 `VERSION` selects the release and `RELEASES` a mirror of the release downloads:
 
+<!-- x-release-please-start-version -->
 ```bash
-podman build --format oci --platform linux/amd64,linux/arm64 --manifest localhost/mcp-compendium:0.1.0 \
-  --build-arg VERSION=0.1.0 -f images/distroless.Containerfile images
+podman build --format oci --platform linux/amd64,linux/arm64 --manifest localhost/mcp-compendium:0.2.0 \
+  --build-arg VERSION=0.2.0 -f images/distroless.Containerfile images
 ```
+<!-- x-release-please-end -->
 
 The same pattern suits air-gapped or secret-dependent builds: serve the archives from an internal `RELEASES` URL, or
 skip deriving an image entirely and mount configuration and secrets into the published one at runtime.
@@ -423,13 +428,12 @@ nor `serviceAccount.automount` is then needed.
 ### Podman
 
 A rootless [Quadlet](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html) unit runs the daemon as a
-user service. Save it as `~/.config/containers/systemd/mcp-compendium.container`:
+user service. Quadlet makes it wait until the network is online (Podman 5.3 or later); `network-online.target` itself
+has no effect in user units. Save it as `~/.config/containers/systemd/mcp-compendium.container`:
 
 ```ini
 [Unit]
 Description=MCP Compendium
-Wants=network-online.target
-After=network-online.target
 
 [Container]
 ContainerName=mcp-compendium
@@ -446,7 +450,8 @@ Environment=MCP_COMPENDIUM_PUBLIC_URL=http://127.0.0.1:8080
 ReadOnly=true
 NoNewPrivileges=true
 DropCapability=ALL
-HealthCmd=/usr/local/bin/mcpcd healthcheck
+# The JSON array (exec form) is required: Podman runs any other value with /bin/sh, which the image does not have.
+HealthCmd=["/usr/local/bin/mcpcd", "healthcheck"]
 HealthInterval=30s
 HealthTimeout=10s
 HealthRetries=3
@@ -488,6 +493,55 @@ systemctl --user daemon-reload
 systemctl --user start mcp-compendium
 ```
 
+### Private certificate authorities
+
+Servers behind a private or corporate certificate authority fail with x509 errors until it is trusted; `mcpcd status`
+shows the error in the server's last error. On macOS and Windows, `mcpcd` uses the system trust store: add the CA
+there, and leave `SSL_CERT_FILE` and `SSL_CERT_DIR` unset, as either replaces the store. On Linux and in the images,
+`mcpcd` reads the CA bundle (`/etc/ssl/certs/ca-certificates.crt` in the images) and then every PEM file in the
+directories listed in `SSL_CERT_DIR`. Mounting the CA into a directory of its own and pointing `SSL_CERT_DIR` at it
+therefore adds the CA without replacing the bundle.
+
+Stdio servers inherit `SSL_CERT_FILE`, `SSL_CERT_DIR`, `NODE_EXTRA_CA_CERTS` and `NODE_USE_SYSTEM_CA` from the daemon.
+Node.js servers need `NODE_EXTRA_CA_CERTS` naming the CA file; pass other runtimes' variables through the server's
+`env`.
+
+With Podman, add to the unit's `[Container]` section:
+
+```ini
+Volume=%h/.config/mcp-compendium-ca:/etc/ssl/private-ca:ro,Z
+Environment=SSL_CERT_DIR=/etc/ssl/private-ca
+Environment=NODE_EXTRA_CA_CERTS=/etc/ssl/private-ca/corporate.pem
+```
+
+To trust exactly what the host trusts instead, mount the host's bundle file over the image's, for example
+`Volume=/etc/pki/tls/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt:ro` on Fedora and RHEL
+(`/etc/ssl/certs/ca-certificates.crt` on Debian and Ubuntu, `/etc/ssl/ca-bundle.pem` on openSUSE). Mount the file, not
+the host's `/etc/ssl/certs` directory: its entries are often symlinks that dangle inside the container.
+
+With the Helm chart, put the CA in a ConfigMap and mount it:
+
+```yaml
+extraVolumes:
+  - name: private-ca
+    configMap: { name: corporate-ca }
+extraVolumeMounts:
+  - name: private-ca
+    mountPath: /etc/ssl/private-ca
+    readOnly: true
+env:
+  - name: SSL_CERT_DIR
+    value: /etc/ssl/private-ca
+```
+
+An image derived from `minimal` can add the CA to Alpine's bundle instead, which `mcpcd` reads, as do Node.js servers
+when `NODE_USE_SYSTEM_CA=1` is set:
+
+```dockerfile
+COPY corporate.pem /usr/local/share/ca-certificates/corporate.crt
+RUN apk add --no-cache ca-certificates && update-ca-certificates
+```
+
 ## Contributing
 
 Contributions are welcome; [CONTRIBUTING.md](CONTRIBUTING.md) covers development, the checks, and how pull requests
@@ -508,20 +562,33 @@ waiting. Other dependency updates (`chore(deps):`, `ci(deps):`) are merged weekl
 
 ## Migrating from mcp-aggregator
 
-There is no compatibility layer; the move is a one-off edit of the server definitions:
+There is no compatibility layer; the move is a one-off edit of the server definitions and the unit:
 
-| mcp-aggregator                                  | mcp-compendium                                                                      |
-|-------------------------------------------------|-------------------------------------------------------------------------------------|
-| `build.json` `mcp.servers.<name>`               | `servers.<name>` in a configuration file or `conf.d` fragment                       |
-| `type: streamable-http`                         | `type: http`                                                                        |
-| `allowedTools` / `disabledTools`                | `tools.include` / `tools.exclude`                                                   |
-| `oauth.scope` (space-separated)                 | `oauth.scopes` (list); `callbackPort` is gone                                       |
-| `${VAR}` and `.env` on the build host           | `${env:VAR}` and `${file:/path}`, resolved at runtime                               |
-| `mcp.oauth`, `npm run login` and a rebuild      | a sign-in link from the agent, or `mcpcd login <server>` against the running daemon |
-| `credentials.json` baked into the image         | tokens in the state directory, written by the daemon; sign in once per OAuth server |
-| `build.port` (20000)                            | `MCP_COMPENDIUM_LISTEN` (8080 in images)                                            |
-| `build.podman.*` and the generated Quadlet unit | the static unit under [Podman](#podman)                                             |
-| `get_tool_schema` / `invoke_tool`               | `search_tools`, `describe_tools` and `call_tool`                                    |
+| mcp-aggregator                                          | mcp-compendium                                                                                                                    |
+|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `build.json` `mcp.servers.<name>`                       | `servers.<name>` in a configuration file or `conf.d` fragment                                                                     |
+| `type: streamable-http`                                 | `type: http`                                                                                                                      |
+| `allowedTools` / `disabledTools`                        | `tools.include` / `tools.exclude`                                                                                                 |
+| `oauth.scope` (space-separated)                         | `oauth.scopes` (list); `callbackPort` is gone                                                                                     |
+| `${VAR}` and `.env` on the build host                   | `${env:VAR}` and `${file:/path}`, resolved at runtime inside the container (Podman `Secret=`, `Environment=`); `.env` is not read |
+| `mcp.oauth`, `npm run login` and a rebuild              | a sign-in link from the agent, or `mcpcd login <server>` against the running daemon                                               |
+| `credentials.json` baked into the image                 | tokens in the state directory, written by the daemon; sign in once per OAuth server                                               |
+| `build.port` (20000)                                    | `MCP_COMPENDIUM_LISTEN` (8080 in images)                                                                                          |
+| `build.podman.*` and the generated Quadlet unit         | the static unit under [Podman](#podman); `RunInit=` is not needed                                                                 |
+| `HealthCmd=wget --spider … /healthz`                    | `HealthCmd=["/usr/local/bin/mcpcd", "healthcheck"]` in exec form; the distroless image has no shell or `wget`                     |
+| host `/etc/ssl/certs` mounted, `NODE_USE_SYSTEM_CA=1`   | see [Private certificate authorities](#private-certificate-authorities)                                                           |
+| a router per client session (supergateway `--stateful`) | one connection per server for all sessions; `isolation: session` for servers with per-session state                               |
+| no limit on result size                                 | results over `maxResultBytes` (32 KiB) are truncated; raise `limits.maxResultBytes` per server                                    |
+| `get_tool_schema` / `invoke_tool`                       | `search_tools`, `describe_tools` and `call_tool`; update client allow-lists and agent instructions                                |
+
+Then:
+
+1. Run `mcpcd config validate`. It reports every problem at once, including unset variables and YAML values that need
+   quoting, such as descriptions containing `: `.
+2. Create the secrets, start the unit, and run `podman exec mcp-compendium /usr/local/bin/mcpcd status` until no server
+   is `connecting`.
+3. Sign in to each OAuth server, and point clients at `/mcp`, renaming the tools in their allow-lists.
+4. Remove the old unit, its state volume and `.env`.
 
 ## Licence
 
