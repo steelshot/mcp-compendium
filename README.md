@@ -2,6 +2,8 @@
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/steelshot/mcp-compendium/badge)](https://scorecard.dev/viewer/?uri=github.com/steelshot/mcp-compendium)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16459/badge)](https://www.bestpractices.dev/projects/16459)
+[![Release](https://img.shields.io/github/v/release/steelshot/mcp-compendium)](https://github.com/steelshot/mcp-compendium/releases/latest)
+[![Licence](https://img.shields.io/github/license/steelshot/mcp-compendium)](LICENSE.md)
 
 One daemon, `mcpcd`, that serves any number of MCP servers to AI agents as a single Streamable HTTP endpoint. Instead
 of registering every downstream tool with the agent, it exposes three tools that let the agent find and call what it
