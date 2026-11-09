@@ -1,0 +1,200 @@
+// Dependency updates. Pull request titles decide whether a merge is released:
+// - fix(deps): security fixes, Go patch releases and base images. Released as a patch; security fixes immediately.
+// - chore(deps): other Go modules and the helm test image. Not released.
+// - ci(deps): GitHub Actions and CI tools. Not released.
+// Routine updates are grouped per ecosystem, weekly, at least 3 days after their release, and merge once checks pass.
+// Go minor releases wait for review.
+{
+	$schema: "https://docs.renovatebot.com/renovate-schema.json",
+	extends: [
+		"config:best-practices",
+		":disableRateLimiting"
+	],
+	// includePaths restricts the scanned files; managerFilePatterns would only add to each manager's defaults.
+	enabledManagers: [
+		"gomod",
+		"dockerfile",
+		"github-actions",
+		"helm-values",
+		"custom.regex"
+	],
+	includePaths: [
+		"go.mod",
+		"images/*.Containerfile",
+		"helm/values.yaml",
+		".github/workflows/*.yml"
+	],
+	schedule: [
+		"* 0-5 * * 1"
+	],
+	minimumReleaseAge: "3 days",
+	labels: [
+		"dependencies"
+	],
+	automerge: true,
+	automergeType: "pr",
+	platformAutomerge: true,
+	platformCommit: "enabled",
+	// Branches must be up to date with main before merging.
+	rebaseWhen: "behind-base-branch",
+	semanticCommits: "enabled",
+	semanticCommitType: "chore",
+	semanticCommitScope: "deps",
+	postUpdateOptions: [
+		"gomodTidy"
+	],
+	osvVulnerabilityAlerts: true,
+	vulnerabilityAlerts: {
+		labels: [
+			"dependencies",
+			"security"
+		],
+		semanticCommitType: "fix",
+		schedule: [
+			"at any time"
+		],
+		minimumReleaseAge: null,
+		automerge: true,
+	},
+	packageRules: [
+		{
+			description: "Default to chore(deps), overriding the presets that title some module updates fix(deps); the rules below choose fix or ci",
+			matchPackageNames: [
+				"*"
+			],
+			semanticCommitType: "chore",
+		},
+		{
+			description: "Indirect requirements stay at the minimum go mod tidy selects; replace directives override vulnerable ones",
+			matchManagers: [
+				"gomod"
+			],
+			matchDepTypes: [
+				"indirect"
+			],
+			enabled: false,
+		},
+		{
+			description: "Group Go module updates",
+			matchManagers: [
+				"gomod"
+			],
+			matchDatasources: [
+				"go"
+			],
+			groupName: "Go modules",
+		},
+		{
+			description: "Only propose module versions compatible with the go directive",
+			matchManagers: [
+				"gomod"
+			],
+			constraintsFiltering: "strict",
+		},
+		{
+			description: "Keep the go directive on the newest Go release",
+			matchManagers: [
+				"gomod"
+			],
+			matchDepNames: [
+				"go"
+			],
+			matchDepTypes: [
+				"golang"
+			],
+			rangeStrategy: "bump",
+		},
+		{
+			description: "Go patch releases (often security fixes): straight away, auto-merged, and released as fix(deps)",
+			matchDatasources: [
+				"golang-version"
+			],
+			matchUpdateTypes: [
+				"patch"
+			],
+			groupName: "Go",
+			schedule: [
+				"at any time"
+			],
+			minimumReleaseAge: null,
+			semanticCommitType: "fix",
+		},
+		{
+			description: "Go minor releases: reviewed by hand, released with the next planned release",
+			matchDatasources: [
+				"golang-version"
+			],
+			matchUpdateTypes: [
+				"minor",
+				"major"
+			],
+			groupName: "Go minor",
+			automerge: false,
+		},
+		{
+			description: "Base images of the Containerfiles ship in the images, so they are released as fix(deps)",
+			matchManagers: [
+				"dockerfile"
+			],
+			groupName: "base images",
+			semanticCommitType: "fix",
+		},
+		{
+			description: "Workflow actions and CI tools change nothing users run, so they are not released",
+			matchManagers: [
+				"github-actions",
+				"custom.regex"
+			],
+			groupName: "CI",
+			semanticCommitType: "ci",
+		},
+		{
+			description: "helm-unittest image tags are <Helm version>-<helm-unittest version>: keep the Helm part and update helm-unittest",
+			matchPackageNames: [
+				"helmunittest/helm-unittest"
+			],
+			versioning: "regex:^(?<compatibility>\\d+\\.\\d+\\.\\d+)-(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
+		},
+		{
+			description: "Our own images, referenced by the chart, are versioned by releases, not by Renovate",
+			matchPackageNames: [
+				"ghcr.io/steelshot/mcp-compendium/**",
+				"ghcr.io/steelshot/mcp-compendium"
+			],
+			enabled: false,
+		},
+		{
+			description: "The helm test image is only used by helm test",
+			matchManagers: [
+				"helm-values"
+			],
+			groupName: "helm test image",
+		},
+		{
+			description: "Major updates of Go modules usually need code changes",
+			matchManagers: [
+				"gomod"
+			],
+			matchDatasources: [
+				"go"
+			],
+			matchUpdateTypes: [
+				"major"
+			],
+			automerge: false,
+			dependencyDashboardApproval: true,
+		},
+	],
+	customManagers: [
+		{
+			description: "Tool versions in workflow environment variables, annotated with a # renovate: comment",
+			customType: "regex",
+			managerFilePatterns: [
+				"/^\\.github/workflows/[^/]+\\.ya?ml$/"
+			],
+			matchStrings: [
+				"# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+[A-Z0-9_]+: (?<currentValue>\\S+)",
+			],
+		},
+	],
+}

@@ -1,0 +1,20 @@
+apiVersion: v2
+name: mcp-compendium
+description: Serve many MCP servers to AI agents as one compact, searchable endpoint.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.29.0-0"
+home: https://github.com/steelshot/mcp-compendium
+sources:
+  - https://github.com/steelshot/mcp-compendium
+keywords:
+  - mcp
+  - model-context-protocol
+  - ai-agents
+  - gateway
+maintainers:
+  - name: steelshot
+    url: https://github.com/steelshot
+annotations:
+  artifacthub.io/license: AGPL-3.0-only

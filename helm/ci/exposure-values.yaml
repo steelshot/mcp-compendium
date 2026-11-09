@@ -1,0 +1,26 @@
+# CI value set: every optional exposure resource enabled.
+publicUrl: https://mcp.example.com
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: mcp.example.com
+  tls:
+    - secretName: mcp-example-com-tls
+      hosts: [ mcp.example.com ]
+httpRoute:
+  enabled: true
+  parentRefs:
+    - name: gateway
+      namespace: gateway-system
+  hostnames: [ mcp.example.com ]
+networkPolicy:
+  enabled: true
+  from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: agents
+    # Lets the helm test pod reach the daemon.
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: test

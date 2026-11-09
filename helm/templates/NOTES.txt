@@ -1,0 +1,27 @@
+mcp-compendium {{ .Chart.AppVersion }} ({{ .Values.image.flavour }}) is running.
+
+MCP endpoint for agents, from inside the cluster:
+
+  http://{{ include "mcp-compendium.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/mcp
+
+Manage it from your machine:
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "mcp-compendium.fullname" . }} 8080:{{ .Values.service.port }}
+  mcpcd status
+
+Servers that need OAuth show as unauthorized. Sign in through the port-forward with:
+
+  mcpcd login <server>
+{{- if .Values.publicUrl }}
+
+Agents whose clients support URL elicitation receive sign-in links under {{ .Values.publicUrl }}.
+{{- end }}
+{{- if not .Values.persistence.enabled }}
+
+WARNING: persistence is disabled, so stored OAuth tokens are lost whenever the pod restarts.
+{{- end }}
+{{- if and (not .Values.auth.providers) (not .Values.auth.allowAnonymous) (not .Values.existingConfigMap) }}
+
+WARNING: no auth providers and allowAnonymous is false, so the daemon will refuse to start. Configure auth.providers
+(for example a jwt provider for service account tokens), or set auth.allowAnonymous=true behind a NetworkPolicy.
+{{- end }}

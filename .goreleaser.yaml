@@ -1,0 +1,62 @@
+# Release binaries, archives and signed checksums, uploaded to the GitHub release created by release-please.
+# Pull requests build a snapshot (version 0.0.0-ci).
+version: 2
+
+project_name: mcp-compendium
+
+builds:
+  - id: mcpcd
+    main: ./cmd/mcpcd
+    binary: mcpcd
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    tags:
+      - timetzdata
+    ldflags:
+      - -s -w -buildid=
+      - -X github.com/steelshot/mcp-compendium/internal/app.version={{ .Version }}
+      - -X github.com/steelshot/mcp-compendium/internal/app.commit={{ .FullCommit }}
+      - -X github.com/steelshot/mcp-compendium/internal/app.date={{ .CommitDate }}
+    goos: [ linux, windows ]
+    goarch: [ amd64, arm64 ]
+    # Reproducible builds: file times come from the commit, not the build machine.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - formats: [ tar.xz ]
+    format_overrides:
+      - goos: windows
+        formats: [ zip ]
+    name_template: >-
+      {{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end }}
+    builds_info:
+      mtime: "{{ .CommitDate }}"
+    files:
+      - src: LICENSE.md
+        info: { mtime: "{{ .CommitDate }}" }
+      - src: README.md
+        info: { mtime: "{{ .CommitDate }}" }
+      - src: CHANGELOG.md
+        info: { mtime: "{{ .CommitDate }}" }
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args: [ sign-blob, "--bundle=${signature}", "${artifact}", --yes ]
+
+snapshot:
+  version_template: 0.0.0-ci
+
+changelog:
+  disable: true
+
+release:
+  # The release and its notes come from release-please.
+  mode: keep-existing

@@ -1,0 +1,175 @@
+[
+	{
+		"id": "list-open-prs",
+		"intent": "list open pull requests in steelshot/mcp-compendium",
+		"server": "github",
+		"tool": "list_pull_requests",
+		"arguments": {
+			"owner": "steelshot",
+			"repo": "mcp-compendium",
+			"state": "open"
+		}
+	},
+	{
+		"id": "create-github-issue",
+		"intent": "create a GitHub issue reporting that the login page crashes",
+		"server": "github",
+		"tool": "create_issue",
+		"arguments": {
+			"owner": "steelshot",
+			"repo": "mcp-compendium",
+			"title": "Login page crashes"
+		}
+	},
+	{
+		"id": "merge-pr",
+		"intent": "merge pull request 42",
+		"server": "github",
+		"tool": "merge_pull_request",
+		"mistake": {
+			"owner": "steelshot",
+			"repo": "mcp-compendium",
+			"pull_number": 42
+		},
+		"arguments": {
+			"owner": "steelshot",
+			"repo": "mcp-compendium",
+			"pullNumber": 42,
+			"merge_method": "squash"
+		}
+	},
+	{
+		"id": "recent-commits",
+		"intent": "show the latest commits on main",
+		"server": "github",
+		"tool": "list_commits",
+		"arguments": {
+			"owner": "steelshot",
+			"repo": "mcp-compendium",
+			"sha": "main"
+		}
+	},
+	{
+		"id": "update-remote-file",
+		"intent": "update config.yaml in the GitHub repository",
+		"server": "github",
+		"tool": "create_or_update_file",
+		"mistake": {
+			"owner": "steelshot",
+			"repo": "mcp-compendium",
+			"path": "config.yaml",
+			"content": "x: 1"
+		},
+		"arguments": {
+			"owner": "steelshot",
+			"repo": "mcp-compendium",
+			"path": "config.yaml",
+			"content": "x: 1",
+			"message": "Update config",
+			"branch": "main",
+			"sha": "abc"
+		}
+	},
+	{
+		"id": "read-readme",
+		"intent": "read the file /data/README.md",
+		"server": "filesystem",
+		"tool": "read_file",
+		"arguments": {
+			"path": "/data/README.md"
+		}
+	},
+	{
+		"id": "folder-structure",
+		"intent": "show the folder structure of /data recursively",
+		"server": "filesystem",
+		"tool": "directory_tree",
+		"arguments": {
+			"path": "/data"
+		}
+	},
+	{
+		"id": "find-go-files",
+		"intent": "find files named *.go under /data/src",
+		"server": "filesystem",
+		"tool": "search_files",
+		"arguments": {
+			"path": "/data/src",
+			"pattern": "*.go"
+		}
+	},
+	{
+		"id": "file-size",
+		"intent": "how big is /data/archive.zip and when was it modified",
+		"server": "filesystem",
+		"tool": "get_file_info",
+		"arguments": {
+			"path": "/data/archive.zip"
+		}
+	},
+	{
+		"id": "open-website",
+		"intent": "go to https://example.com in the browser",
+		"server": "browser",
+		"tool": "browser_navigate",
+		"arguments": {
+			"url": "https://example.com"
+		}
+	},
+	{
+		"id": "screenshot",
+		"intent": "take a screenshot of the current web page",
+		"server": "browser",
+		"tool": "browser_take_screenshot",
+		"arguments": {
+			"fullPage": true
+		}
+	},
+	{
+		"id": "type-username",
+		"intent": "type my username into the login field",
+		"server": "browser",
+		"tool": "browser_type",
+		"arguments": {
+			"element": "Username field",
+			"ref": "e12",
+			"text": "steelshot"
+		}
+	},
+	{
+		"id": "jira-comment",
+		"intent": "comment on Jira ticket PROJ-12 that the fix is deployed",
+		"server": "jira",
+		"tool": "jira_add_comment",
+		"arguments": {
+			"issue_key": "PROJ-12",
+			"comment": "The fix is deployed."
+		}
+	},
+	{
+		"id": "jira-done",
+		"intent": "move PROJ-12 to Done",
+		"server": "jira",
+		"tool": "jira_transition_issue",
+		"arguments": {
+			"issue_key": "PROJ-12",
+			"transition": "Done"
+		}
+	},
+	{
+		"id": "jira-projects",
+		"intent": "which Jira projects can I access",
+		"server": "jira",
+		"tool": "jira_list_projects",
+		"arguments": {}
+	},
+	{
+		"id": "jira-open-bugs",
+		"intent": "find open bugs in the PROJ Jira project",
+		"server": "jira",
+		"tool": "jira_search",
+		"arguments": {
+			"jql": "project = PROJ AND type = Bug AND status = Open"
+		}
+	}
+]

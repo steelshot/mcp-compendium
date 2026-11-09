@@ -1,0 +1,19 @@
+{{- if not .Values.existingConfigMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mcp-compendium.fullname" . }}
+  labels:
+    {{- include "mcp-compendium.labels" . | nindent 4 }}
+data:
+  # One file per server, merged by the daemon in lexical order; a server defined twice is an error.
+  {{- range $name, $server := .Values.servers }}
+  {{ printf "server-%s.yaml" $name }}: |
+    servers:
+      {{ $name | quote }}:
+        {{- toYaml $server | nindent 8 }}
+  {{- end }}
+  auth.yaml: |
+    auth:
+      {{- toYaml .Values.auth | nindent 6 }}
+{{- end }}

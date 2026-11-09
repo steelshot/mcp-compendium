@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=values.schema.json
+
+image:
+  # The flavour is appended: ghcr.io/steelshot/mcp-compendium/distroless or .../minimal. Set fullRepository instead to
+  # use an image derived from minimal.
+  repository: ghcr.io/steelshot/mcp-compendium
+  fullRepository: ""
+  # Defaults to the chart's appVersion; "latest" follows the newest release.
+  tag: ""
+  # distroless: remote (http/sse) servers only. minimal: Alpine, for stdio servers added in a derived image.
+  flavour: distroless
+  # Pins the image by digest; takes precedence over tag.
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: [ ]
+nameOverride: ""
+fullnameOverride: ""
+
+# Downstream MCP servers, exactly as in the configuration file's servers map. Each server becomes its own file in the
+# configuration directory. String values may use ${env:NAME} and ${file:/path} placeholders; supply secrets through
+# env/envFrom or extraVolumes rather than putting them here.
+servers: { }
+#  github:
+#    type: http
+#    url: https://api.githubcopilot.com/mcp/
+#    description: GitHub repositories, issues, pull requests and code search.
+#    headers:
+#      Authorization: Bearer ${env:GITHUB_TOKEN}
+#    tools:
+#      exclude: ["*delete*"]
+
+# Inbound authentication, as in the configuration file's auth section. Kubernetes service account tokens are verified
+# with a jwt provider; see the README.
+auth:
+  allowAnonymous: false
+  providers: [ ]
+
+# Use an existing ConfigMap as the whole configuration directory instead of rendering servers and auth.
+existingConfigMap: ""
+
+# Browser-reachable base URL of the daemon, such as the Ingress or HTTPRoute host. Enables sign-in links that agents
+# show users when a server needs OAuth.
+publicUrl: ""
+
+logLevel: info
+logFormat: json
+
+env: [ ]
+envFrom: [ ]
+extraVolumes: [ ]
+extraVolumeMounts: [ ]
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: { }
+  # The daemon never calls the Kubernetes API. Mount the token only when a jwt provider needs it for issuer discovery.
+  automount: false
+
+# OAuth tokens for downstream servers are written here; without persistence they are lost on every restart.
+persistence:
+  enabled: true
+  existingClaim: ""
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 64Mi
+
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: { }
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: { }
+  hosts: [ ]
+  #  - host: mcp.example.com
+  tls: [ ]
+
+httpRoute:
+  enabled: false
+  annotations: { }
+  parentRefs: [ ]
+  #  - name: gateway
+  #    namespace: gateway-system
+  hostnames: [ ]
+
+networkPolicy:
+  enabled: false
+  # Peers allowed to reach the daemon, as NetworkPolicy "from" entries.
+  from: [ ]
+  #  - namespaceSelector:
+  #      matchLabels:
+  #        kubernetes.io/metadata.name: agents
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Image of the pod that helm test runs to check the daemon answers /readyz.
+test:
+  image: docker.io/curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
+
+podAnnotations: { }
+podLabels: { }
+nodeSelector: { }
+tolerations: [ ]
+affinity: { }

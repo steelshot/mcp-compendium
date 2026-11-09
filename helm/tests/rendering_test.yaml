@@ -1,0 +1,93 @@
+suite: rendering
+templates:
+  - templates/configmap.yaml
+  - templates/deployment.yaml
+  - templates/pvc.yaml
+  - templates/exposure.yaml
+tests:
+  - it: renders one configuration file per server
+    template: templates/configmap.yaml
+    set:
+      servers:
+        github: { type: http, url: "https://api.githubcopilot.com/mcp/" }
+        files: { type: stdio, command: mcp-server-filesystem }
+    asserts:
+      - exists:
+          path: data["server-github.yaml"]
+      - exists:
+          path: data["server-files.yaml"]
+      - matchRegex:
+          path: data["server-github.yaml"]
+          pattern: 'url: https://api.githubcopilot.com/mcp/'
+
+  - it: nests the authentication settings under auth
+    template: templates/configmap.yaml
+    set:
+      auth.allowAnonymous: true
+    asserts:
+      - matchRegex:
+          path: data["auth.yaml"]
+          pattern: '^auth:\n  allowAnonymous: true\n  providers: \[\]\n$'
+
+  - it: selects the image flavour by repository
+    template: templates/deployment.yaml
+    set:
+      image.flavour: minimal
+      image.tag: "1.2.3"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/steelshot/mcp-compendium/minimal:1.2.3
+
+  - it: defaults to the distroless flavour at the chart's appVersion
+    template: templates/deployment.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: '^ghcr\.io/steelshot/mcp-compendium/distroless:\d+\.\d+\.\d+$'
+
+  - it: uses a derived image as is
+    template: templates/deployment.yaml
+    set:
+      image.fullRepository: registry.example/team/mcp-compendium-node
+      image.tag: "7"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example/team/mcp-compendium-node:7
+
+  - it: pins the image by digest
+    template: templates/deployment.yaml
+    set:
+      image.digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: '@sha256:0{64}$'
+
+  - it: runs hardened and stops the old pod before starting a new one
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: rolls the pod when the configuration changes
+    template: templates/deployment.yaml
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["checksum/config"]
+
+  - it: skips the claim when persistence is off
+    template: templates/pvc.yaml
+    set:
+      persistence.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

@@ -1,0 +1,288 @@
+{
+	"$schema": "https://json-schema.org/draft-07/schema#",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"global": {
+			"type": "object"
+		},
+		"image": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"repository": {
+					"type": "string",
+					"minLength": 1
+				},
+				"tag": {
+					"type": "string"
+				},
+				"flavour": {
+					"enum": [
+						"distroless",
+						"minimal"
+					]
+				},
+				"digest": {
+					"type": "string",
+					"pattern": "^(|sha256:[a-f0-9]{64})$"
+				},
+				"pullPolicy": {
+					"enum": [
+						"Always",
+						"IfNotPresent",
+						"Never"
+					]
+				},
+				"fullRepository": {
+					"type": "string"
+				}
+			}
+		},
+		"imagePullSecrets": {
+			"type": "array"
+		},
+		"nameOverride": {
+			"type": "string"
+		},
+		"fullnameOverride": {
+			"type": "string"
+		},
+		"servers": {
+			"description": "Downstream servers, as in the configuration file; validated by the daemon against its own schema.",
+			"type": "object",
+			"propertyNames": {
+				"pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"
+			},
+			"additionalProperties": {
+				"type": "object",
+				"required": [
+					"type"
+				],
+				"properties": {
+					"type": {
+						"enum": [
+							"stdio",
+							"http",
+							"sse"
+						]
+					}
+				}
+			}
+		},
+		"auth": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"allowAnonymous": {
+					"type": "boolean"
+				},
+				"providers": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"required": [
+							"name",
+							"type"
+						]
+					}
+				}
+			}
+		},
+		"existingConfigMap": {
+			"type": "string"
+		},
+		"publicUrl": {
+			"type": "string",
+			"pattern": "^(|https?://\\S+)$"
+		},
+		"logLevel": {
+			"enum": [
+				"debug",
+				"info",
+				"warn",
+				"error"
+			]
+		},
+		"logFormat": {
+			"enum": [
+				"json",
+				"text"
+			]
+		},
+		"env": {
+			"type": "array"
+		},
+		"envFrom": {
+			"type": "array"
+		},
+		"extraVolumes": {
+			"type": "array"
+		},
+		"extraVolumeMounts": {
+			"type": "array"
+		},
+		"serviceAccount": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"create": {
+					"type": "boolean"
+				},
+				"name": {
+					"type": "string"
+				},
+				"annotations": {
+					"type": "object"
+				},
+				"automount": {
+					"type": "boolean"
+				}
+			}
+		},
+		"persistence": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"enabled": {
+					"type": "boolean"
+				},
+				"existingClaim": {
+					"type": "string"
+				},
+				"storageClass": {
+					"type": "string"
+				},
+				"accessModes": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"size": {
+					"type": "string"
+				}
+			}
+		},
+		"service": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"type": {
+					"enum": [
+						"ClusterIP",
+						"NodePort",
+						"LoadBalancer"
+					]
+				},
+				"port": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 65535
+				},
+				"annotations": {
+					"type": "object"
+				}
+			}
+		},
+		"ingress": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"enabled": {
+					"type": "boolean"
+				},
+				"className": {
+					"type": "string"
+				},
+				"annotations": {
+					"type": "object"
+				},
+				"hosts": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"required": [
+							"host"
+						],
+						"properties": {
+							"host": {
+								"type": "string"
+							}
+						}
+					}
+				},
+				"tls": {
+					"type": "array"
+				}
+			}
+		},
+		"httpRoute": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"enabled": {
+					"type": "boolean"
+				},
+				"annotations": {
+					"type": "object"
+				},
+				"parentRefs": {
+					"type": "array"
+				},
+				"hostnames": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			}
+		},
+		"networkPolicy": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"enabled": {
+					"type": "boolean"
+				},
+				"from": {
+					"type": "array"
+				}
+			}
+		},
+		"resources": {
+			"type": "object"
+		},
+		"podSecurityContext": {
+			"type": "object"
+		},
+		"securityContext": {
+			"type": "object"
+		},
+		"test": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"image": {
+					"type": "string",
+					"minLength": 1
+				}
+			}
+		},
+		"podAnnotations": {
+			"type": "object"
+		},
+		"podLabels": {
+			"type": "object"
+		},
+		"nodeSelector": {
+			"type": "object"
+		},
+		"tolerations": {
+			"type": "array"
+		},
+		"affinity": {
+			"type": "object"
+		}
+	}
+}

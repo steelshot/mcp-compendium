@@ -1,0 +1,86 @@
+{
+	"listTokens": 615,
+	"directListTokens": 3736,
+	"tasks": {
+		"create-github-issue": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 477
+		},
+		"file-size": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 90
+		},
+		"find-go-files": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 314
+		},
+		"folder-structure": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 8563
+		},
+		"jira-comment": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 361
+		},
+		"jira-done": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 90
+		},
+		"jira-open-bugs": {
+			"rank": 3,
+			"rounds": 2,
+			"tokens": 350
+		},
+		"jira-projects": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 235
+		},
+		"list-open-prs": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 415
+		},
+		"merge-pr": {
+			"rank": 1,
+			"rounds": 3,
+			"tokens": 457
+		},
+		"open-website": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 283
+		},
+		"read-readme": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 337
+		},
+		"recent-commits": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 396
+		},
+		"screenshot": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 215
+		},
+		"type-username": {
+			"rank": 1,
+			"rounds": 2,
+			"tokens": 182
+		},
+		"update-remote-file": {
+			"rank": 2,
+			"rounds": 3,
+			"tokens": 743
+		}
+	}
+}
