@@ -26,6 +26,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -413,6 +414,66 @@ func TestConfigHashPassword(t *testing.T) {
 
 	if _, code, stderr = hash("correct-horse-battery\n", "--cost", "4"); code == 0 || !strings.Contains(stderr, "between 10 and 31") {
 		t.Errorf("low cost: exit %d, %s", code, stderr)
+	}
+}
+
+func TestHealthcheck(t *testing.T) {
+	t.Parallel()
+
+	// /readyz fails twice with a reason, then succeeds.
+	var readyProbes atomic.Int32
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /livez", func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "ok\n") })
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
+		if readyProbes.Add(1) <= 2 {
+			http.Error(w, "still connecting to servers", http.StatusServiceUnavailable)
+
+			return
+		}
+
+		_, _ = io.WriteString(w, "ok\n")
+	})
+
+	daemon := httptest.NewServer(mux)
+	t.Cleanup(daemon.Close)
+
+	listen := strings.TrimPrefix(daemon.URL, "http://")
+	check := func(args ...string) (int, string) {
+		var stdout, stderr bytes.Buffer
+
+		code := Execute(t.Context(), append([]string{"healthcheck", "--listen", listen}, args...), strings.NewReader(""), &stdout, &stderr)
+
+		return code, stderr.String()
+	}
+
+	if code, stderr := check(); code != 0 {
+		t.Errorf("liveness: exit %d: %s", code, stderr)
+	}
+
+	if code, stderr := check("--ready"); code == 0 || !strings.Contains(stderr, "still connecting to servers") {
+		t.Errorf("readiness without --wait: exit %d: %s", code, stderr)
+	}
+
+	if code, stderr := check("--ready", "--wait", "10s"); code != 0 || readyProbes.Load() != 3 {
+		t.Errorf("readiness with --wait: exit %d after %d probes: %s", code, readyProbes.Load(), stderr)
+	}
+
+	if code, stderr := check("--wait", "-1s"); code == 0 || !strings.Contains(stderr, "must not be negative") {
+		t.Errorf("negative --wait: exit %d: %s", code, stderr)
+	}
+
+	// Nothing listens on a closed server's address, so --wait gives up once its time is up.
+	closed := httptest.NewServer(mux)
+	closed.Close()
+
+	started := time.Now()
+
+	var stdout, stderr bytes.Buffer
+
+	args := []string{"healthcheck", "--listen", strings.TrimPrefix(closed.URL, "http://"), "--wait", "1s"}
+	if code := Execute(t.Context(), args, strings.NewReader(""), &stdout, &stderr); code == 0 || time.Since(started) > 5*time.Second {
+		t.Errorf("unreachable daemon: exit %d after %s: %s", code, time.Since(started), stderr.String())
 	}
 }
 
