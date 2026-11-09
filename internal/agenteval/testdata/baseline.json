@@ -33,7 +33,7 @@
 			"tokens": 90
 		},
 		"jira-open-bugs": {
-			"rank": 3,
+			"rank": 2,
 			"rounds": 2,
 			"tokens": 350
 		},
@@ -80,7 +80,7 @@
 		"update-remote-file": {
 			"rank": 2,
 			"rounds": 3,
-			"tokens": 743
+			"tokens": 742
 		}
 	}
 }
