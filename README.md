@@ -309,12 +309,20 @@ The HTTP listener also serves `/livez` (the process is responsive) and `/readyz`
 ### Binaries
 
 Each [release](https://github.com/steelshot/mcp-compendium/releases) has archives for Linux (`tar.xz`) and Windows
-(`zip`) on x86_64 and arm64, each containing `mcpcd`, the licence, this README and the changelog. `checksums.txt` holds
-their SHA-256 sums and is signed with Cosign (`checksums.txt.sigstore.json`); build provenance is attested and attached
-as `mcp-compendium-<version>.intoto.jsonl`. [SECURITY.md](SECURITY.md#verifying-releases) shows how to verify them:
+(`zip`) on x86_64 and arm64, and for macOS on Apple Silicon (`tar.xz`), each containing `mcpcd`, the licence, this
+README and the changelog. `checksums.txt` holds their SHA-256 sums and is signed with Cosign
+(`checksums.txt.sigstore.json`); build provenance is attested and attached as `mcp-compendium-<version>.intoto.jsonl`.
+[SECURITY.md](SECURITY.md#verifying-releases) shows how to verify them:
 
 ```bash
 sha256sum --check --ignore-missing checksums.txt
+```
+
+The macOS binary is not notarised. macOS blocks it when it was downloaded through a browser; once the checksum is
+verified, clear the quarantine flag:
+
+```bash
+xattr -d com.apple.quarantine mcpcd
 ```
 
 ### Container images
