@@ -90,8 +90,8 @@ notes; describe what breaks and how to upgrade in the template's *Breaking chang
 New behaviour and bug fixes come with tests that cover them. The checks run only for the areas a pull request
 touches:
 
-- **Go code**: golangci-lint, tests on Linux (x86_64 and arm64), Windows and macOS, generated code and `go.mod`
-  tidiness, govulncheck, and a cross-compiled snapshot release.
+- **Go code**: golangci-lint, tests on Linux and Windows (x86_64 and arm64) and macOS, generated code and
+  `go.mod` tidiness, govulncheck, and a cross-compiled snapshot release.
 - **`images/`**: both images, built from the pull request's binaries and smoke-tested.
 - **`helm/`**: chart-testing lint, helm-unittest, kubeconform schema validation, and an installation with `helm test` in a
   kind cluster, for each `helm/ci/*-values.yaml`.
