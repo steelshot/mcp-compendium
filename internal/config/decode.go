@@ -30,7 +30,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/tailscale/hujson"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 const maxFileBytes = 1 << 20
@@ -193,7 +193,7 @@ func normalizeNumber(number json.Number) (any, error) {
 	return float, nil
 }
 
-// decodeYAML relies on yaml.v3, which already rejects duplicate mapping keys.
+// decodeYAML relies on go-yaml, which already rejects duplicate mapping keys.
 func decodeYAML(data []byte) (any, error) {
 	var tree any
 	if err := yaml.Unmarshal(data, &tree); err != nil {
