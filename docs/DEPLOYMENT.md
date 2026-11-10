@@ -41,7 +41,7 @@ pinning exact versions so rebuilds are reproducible:
 
 ```dockerfile
 # x-release-please-start-version
-FROM ghcr.io/steelshot/mcp-compendium/minimal:0.3.1
+FROM ghcr.io/steelshot/mcp-compendium/minimal:0.3.2
 # x-release-please-end
 USER root
 RUN apk add --no-cache nodejs npm && \
@@ -58,8 +58,8 @@ context is empty (see [`images/.containerignore`](../images/.containerignore)).
 
 <!-- x-release-please-start-version -->
 ```bash
-podman build --format oci --platform linux/amd64,linux/arm64 --manifest localhost/mcp-compendium:0.3.1 \
-  --build-arg VERSION=0.3.1 -f images/distroless.Containerfile images
+podman build --format oci --platform linux/amd64,linux/arm64 --manifest localhost/mcp-compendium:0.3.2 \
+  --build-arg VERSION=0.3.2 -f images/distroless.Containerfile images
 ```
 <!-- x-release-please-end -->
 
@@ -127,7 +127,7 @@ the image has no shell. Install both from the release you run:
 
 ```bash
 # x-release-please-start-version
-version=0.3.1
+version=0.3.2
 # x-release-please-end
 base="https://raw.githubusercontent.com/steelshot/mcp-compendium/v${version}/deploy/podman"
 mkdir -p ~/.config/containers/systemd ~/.config/mcp-compendium

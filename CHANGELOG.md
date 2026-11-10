@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/steelshot/mcp-compendium/compare/v0.3.1...v0.3.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **search:** match tool names on whole words ([#18](https://github.com/steelshot/mcp-compendium/issues/18)) ([b27ea65](https://github.com/steelshot/mcp-compendium/commit/b27ea65bfed5a33e2ad5de53e8451baf81716e80))
+
 ## [0.3.1](https://github.com/steelshot/mcp-compendium/compare/v0.3.0...v0.3.1) (2026-11-10)
 
 

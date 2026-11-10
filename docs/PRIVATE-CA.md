@@ -45,7 +45,7 @@ when `NODE_USE_SYSTEM_CA=1` is set:
 
 ```dockerfile
 # x-release-please-start-version
-FROM ghcr.io/steelshot/mcp-compendium/minimal:0.3.1
+FROM ghcr.io/steelshot/mcp-compendium/minimal:0.3.2
 # x-release-please-end
 USER root
 COPY corporate.pem /usr/local/share/ca-certificates/corporate.crt
