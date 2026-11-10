@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/steelshot/mcp-compendium/compare/v0.3.0...v0.3.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **deps:** update go module directive to v1.27.4 ([#16](https://github.com/steelshot/mcp-compendium/issues/16)) ([bb8e669](https://github.com/steelshot/mcp-compendium/commit/bb8e669d1f1a2a6b68e78e8048c98c3ba69d3b63))
+
 ## [0.3.0](https://github.com/steelshot/mcp-compendium/compare/v0.2.1...v0.3.0) (2026-11-09)
 
 
