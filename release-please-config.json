@@ -56,7 +56,8 @@
 	"packages": {
 		".": {
 			"extra-files": [
-				"README.md",
+				"docs/DEPLOYMENT.md",
+				"docs/PRIVATE-CA.md",
 				"SECURITY.md"
 			]
 		}

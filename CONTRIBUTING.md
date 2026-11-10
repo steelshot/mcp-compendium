@@ -95,6 +95,8 @@ touches:
 - **`images/`**: both images, built from the pull request's binaries and smoke-tested.
 - **`helm/`**: chart-testing lint, helm-unittest, kubeconform schema validation, and an installation with `helm test` in a
   kind cluster, for each `helm/ci/*-values.yaml`.
+- **`deploy/podman/`**: the unit declares no `network-online.target` dependency, the service Quadlet generates from it
+  keeps the health check in exec form, and the example configuration validates.
 - **Always**: workflows are linted with actionlint and zizmor, and every file's licence information with
   `reuse lint`.
 

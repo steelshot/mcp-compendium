@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/steelshot/mcp-compendium/main/schema/config.schema.json
+servers:
+  github:
+    type: http
+    url: https://api.githubcopilot.com/mcp/
+    description: GitHub repositories, issues, pull requests and code search.
+    headers:
+      Authorization: Bearer ${env:GITHUB_TOKEN}
+    tools:
+      exclude: [ "*delete*" ]
+auth:
+  # The unit publishes the port on 127.0.0.1 only. Configure providers instead when other hosts can reach it.
+  allowAnonymous: true

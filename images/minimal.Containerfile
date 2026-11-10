@@ -1,4 +1,4 @@
-# Minimal image: Alpine with tini and the mcpcd binary. Derive from it to add stdio MCP servers; see the README.
+# Minimal image: Alpine with tini and the mcpcd binary. Derive from it to add stdio MCP servers; see docs/DEPLOYMENT.md.
 #
 #   podman build -f images/minimal.Containerfile --build-arg VERSION=0.1.0 -t mcp-compendium/minimal images
 #
