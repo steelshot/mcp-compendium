@@ -16,6 +16,7 @@ path = [
     "go.sum",
     "openapi.yaml",
     "*.md",
+    "docs/*.md",
     ".github/**",
     "helm/**",
     "images/**",

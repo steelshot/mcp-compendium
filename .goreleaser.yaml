@@ -42,6 +42,8 @@ archives:
         info: { mtime: "{{ .CommitDate }}" }
       - src: README.md
         info: { mtime: "{{ .CommitDate }}" }
+      - src: docs/*.md
+        info: { mtime: "{{ .CommitDate }}" }
       - src: CHANGELOG.md
         info: { mtime: "{{ .CommitDate }}" }
 

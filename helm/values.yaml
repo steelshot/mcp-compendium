@@ -31,7 +31,7 @@ servers: { }
 #      exclude: ["*delete*"]
 
 # Inbound authentication, as in the configuration file's auth section. Kubernetes service account tokens are verified
-# with a jwt provider; see the README.
+# with a jwt provider; see docs/AUTHENTICATION.md.
 auth:
   allowAnonymous: false
   providers: [ ]

@@ -31,5 +31,5 @@ None
 
 - [ ] The title follows Conventional Commits ([CONTRIBUTING.md](https://github.com/steelshot/mcp-compendium/blob/main/CONTRIBUTING.md#title))
 - [ ] New behaviour and bug fixes are covered by tests
-- [ ] Documentation is updated where needed (README, CONTRIBUTING.md, chart values, `openapi.yaml`)
+- [ ] Documentation is updated where needed (README, `docs/`, CONTRIBUTING.md, chart values, `openapi.yaml`)
 - [ ] Breaking changes are marked with `!` in the title and described above
