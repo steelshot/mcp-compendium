@@ -135,7 +135,8 @@ func TestSearchRanksIntent(t *testing.T) {
 }
 
 // TestSearchRanksNamedTools checks that a query stating a tool's name finds it among tools with shared prefixes and
-// descriptions of very different lengths, with and without a gateway that adds another prefix.
+// descriptions of very different lengths. Gateways add another prefix, which can itself start with the server's
+// prefix, and a second Jira server names its tools in camelCase.
 func TestSearchRanksNamedTools(t *testing.T) {
 	t.Parallel()
 
@@ -143,35 +144,64 @@ func TestSearchRanksNamedTools(t *testing.T) {
 		query   string
 		servers []string
 		want    string
+		within  int // the lowest acceptable rank; 0 means first
 	}{
-		{query: "get a Jira issue by key", want: "jira_get_issue"},
+		{query: "get a Jira issue by key", want: "jira_get_issue", within: 2},
 		{query: "jira get issue", servers: []string{"jira"}, want: "jira_get_issue"},
+		{query: "jira_get_issue", servers: []string{"jira"}, want: "jira_get_issue"},
 		{query: "get issue", servers: []string{"jira"}, want: "jira_get_issue"},
 		{query: "transition an issue to done", want: "jira_transition_issue"},
-		{query: "search jira issues with JQL", want: "jira_search"},
+		{query: "search jira issues with JQL", servers: []string{"jira"}, want: "jira_search"},
 	}
 
-	for _, prefix := range []string{"", "atlassian-"} {
+	for _, prefix := range []string{"", "atlassian-", "jira_dc-"} {
 		documents := append([]Document{
 			{Server: "github", Tool: "create_issue", Description: "Create a new issue in a repository."},
 			{Server: "github", Tool: "list_issues", Description: "List issues in a repository."},
 			{Server: "github", Tool: "add_issue_comment", Description: "Add a comment to an issue."},
 		}, jiraCatalogue(prefix)...)
+		documents = append(documents, cloudCatalogue()...)
 
 		index := Build(documents)
 
 		for _, test := range cases {
 			hits := index.Search(test.query, test.servers, 5)
-			if len(hits) > 0 && documents[hits[0].Index].Tool == prefix+test.want {
-				continue
-			}
 
 			names := make([]string, 0, len(hits))
 			for _, hit := range hits {
 				names = append(names, documents[hit.Index].Tool)
 			}
 
-			t.Errorf("%q with prefix %q: top hits %v, want %s", test.query, prefix, names, prefix+test.want)
+			if rank := slices.Index(names, prefix+test.want); rank < 0 || rank >= max(test.within, 1) {
+				t.Errorf("%q with prefix %q: top hits %v, want %s within the first %d", test.query, prefix, names, prefix+test.want, max(test.within, 1))
+			}
+		}
+	}
+}
+
+// TestNameMatchesWholeWords checks which queries name jira_get_issue: its words must appear whole and in order, so
+// words that merely contain them do not count.
+func TestNameMatchesWholeWords(t *testing.T) {
+	t.Parallel()
+
+	for _, prefix := range []string{"", "jira_dc-"} {
+		documents := jiraCatalogue(prefix)
+		position := slices.IndexFunc(documents, func(document Document) bool { return document.Tool == prefix+"jira_get_issue" })
+		name := coreNames(documents)[position]
+
+		for query, want := range map[string]bool{
+			"budget issue report":       false,
+			"target issues":             false,
+			"issue get":                 false,
+			"get a Jira issue":          true,
+			"get issues":                true,
+			"jira_get_issue":            true,
+			"jiragetissue":              true,
+			"call getIssue for PROJ-12": true,
+		} {
+			if got := name.namedBy(prepareNameQuery(query)); got != want {
+				t.Errorf("prefix %q: %q names %s: %t, want %t", prefix, query, documents[position].Tool, got, want)
+			}
 		}
 	}
 }
@@ -204,6 +234,20 @@ func TestCoreNamesDropSharedPrefix(t *testing.T) {
 	documents[3].Description = "Search for files by name."
 	if hits := Build(documents).Search("search files", nil, 1); len(hits) == 0 || hits[0].Index != 3 {
 		t.Errorf("search files: hits %v, want searchFiles first", hits)
+	}
+}
+
+// cloudCatalogue models a hosted Atlassian server alongside the self-hosted one: camelCase names without a shared
+// prefix, including one that covers every word of "get Jira issue".
+func cloudCatalogue() []Document {
+	const description = "Atlassian Cloud: Confluence pages and spaces; use it for documentation, not Jira issues."
+
+	return []Document{
+		{Server: "atlassian", ServerDescription: description, Tool: "getJiraIssue", Description: "Get a Jira issue by issue ID or key."},
+		{Server: "atlassian", ServerDescription: description, Tool: "searchJiraIssuesUsingJql", Description: "Search Jira issues with JQL."},
+		{Server: "atlassian", ServerDescription: description, Tool: "getConfluencePage", Description: "Get a Confluence page by ID."},
+		{Server: "atlassian", ServerDescription: description, Tool: "searchConfluenceUsingCql", Description: "Search Confluence with CQL."},
+		{Server: "atlassian", ServerDescription: description, Tool: "createConfluencePage", Description: "Create a Confluence page."},
 	}
 }
 

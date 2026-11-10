@@ -59,11 +59,22 @@ type Index struct {
 	names     []coreName
 }
 
-// coreName is a tool name without the leading words shared by every tool of its server, such as "jira" in
-// jira_get_issue or a gateway's prefix, which agents rarely type.
+// coreName describes a tool's name for matching against queries. The core is the name without the leading words shared
+// by every tool of its server, such as "jira" in jira_get_issue or a gateway's prefix, which agents rarely type.
 type coreName struct {
-	text  string   // normalised, for matching against the normalised query
-	terms []string // stemmed content words
+	text     string          // the core, normalised
+	terms    []string        // the core's stemmed content words
+	stripped map[string]bool // the stemmed words removed from the front of the name
+	// The forms that name the tool: the whole name, and every shorter ending that contains the core and keeps two
+	// words, as normalised text (joined) and as stemmed content words (runs).
+	joined map[string]bool
+	runs   [][]string
+}
+
+// nameQuery is a query prepared for name matching.
+type nameQuery struct {
+	words map[string]bool // every normalised word, including whole camelCase words such as "getissue"
+	run   []string        // the stemmed content words in order
 }
 
 const (
@@ -262,7 +273,7 @@ func (i *Index) Search(query string, servers []string, limit int) []Hit {
 	}
 
 	count := float64(len(i.documents))
-	normalizedQuery := normalizeName(query)
+	named := prepareNameQuery(query)
 	words := literalTerms(query)
 	hits := make([]Hit, 0)
 
@@ -272,7 +283,7 @@ func (i *Index) Search(query string, servers []string, limit int) []Hit {
 		}
 
 		scored := i.score(position, terms, count)
-		scored.own += i.nameBonus(position, normalizedQuery, words, terms)
+		scored.own += i.nameBonus(position, named, words, terms)
 
 		// Server descriptions add context but never make a tool a hit on their own.
 		if scored.own > 0 {
@@ -316,16 +327,67 @@ func coreNames(documents []Document) []coreName {
 			core = core[min(len(shared[document.Server]), len(core)-1):]
 		}
 
-		names[position].text = strings.Join(core, "")
+		all, cut := words[position], len(words[position])-len(core)
+		name := &names[position]
+		name.text = strings.Join(core, "")
+		name.terms = contentStems(core)
+		name.stripped = make(map[string]bool)
+		name.joined = make(map[string]bool)
 
-		for _, word := range core {
-			if !stopwords[word] {
-				names[position].terms = append(names[position].terms, stem(word))
+		for _, word := range all[:cut] {
+			name.stripped[stem(word)] = true
+		}
+
+		for start := 0; start <= cut; start++ {
+			if start > 0 && len(all)-start < 2 {
+				break
+			}
+
+			if run := contentStems(all[start:]); len(run) > 0 {
+				name.joined[strings.Join(all[start:], "")] = true
+				name.runs = append(name.runs, run)
 			}
 		}
 	}
 
 	return names
+}
+
+// contentStems stems words, leaving out stopwords.
+func contentStems(words []string) []string {
+	stems := make([]string, 0, len(words))
+
+	for _, word := range words {
+		if !stopwords[word] {
+			stems = append(stems, stem(word))
+		}
+	}
+
+	return stems
+}
+
+func prepareNameQuery(query string) nameQuery {
+	named := nameQuery{words: make(map[string]bool), run: contentStems(nameWords(query))}
+	for _, word := range Tokens(query) {
+		named.words[word] = true
+	}
+
+	return named
+}
+
+// containsRun reports whether run occurs in sequence as consecutive elements.
+func containsRun(sequence, run []string) bool {
+	if len(run) == 0 {
+		return false
+	}
+
+	for start := 0; start+len(run) <= len(sequence); start++ {
+		if slices.Equal(sequence[start:start+len(run)], run) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // nameWords splits a tool name into lower-case words, like Tokens but without the whole camelCase words it adds.
@@ -428,10 +490,6 @@ func trimE(word string) string {
 	return word
 }
 
-func normalizeName(text string) string {
-	return strings.Join(Tokens(text), "")
-}
-
 // score returns the BM25F score of the document's own fields and the bonus from its server description.
 func (i *Index) score(position int, terms map[string]float64, count float64) relevance {
 	score, bonus := 0.0, 0.0
@@ -476,17 +534,15 @@ func (i *Index) frequencyOf(position int, term string) float64 {
 	return total
 }
 
-// nameBonus rewards a query that names the tool, in full or without its server's shared prefix, or that covers every
-// term of its name with its own words (words) or their synonyms and hints (terms). A shortened name must keep two
-// words to count as named, or any query mentioning "search" would name jira_search.
-func (i *Index) nameBonus(position int, normalizedQuery string, words map[string]bool, terms map[string]float64) float64 {
+// nameBonus rewards a query that names the tool, or that covers every term of its name with its own words (words) or
+// their synonyms and hints (terms).
+func (i *Index) nameBonus(position int, named nameQuery, words map[string]bool, terms map[string]float64) float64 {
 	bonus := 0.0
-
-	name, core := normalizeName(i.documents[position].Tool), i.names[position]
-	if (name != "" && strings.Contains(normalizedQuery, name)) ||
-		(core.text != name && len(core.terms) > 1 && strings.Contains(normalizedQuery, core.text)) {
+	if i.names[position].namedBy(named) {
 		bonus += exactNameBonus
 	}
+
+	core := i.names[position]
 
 	coverage := 0.0
 
@@ -502,6 +558,32 @@ func (i *Index) nameBonus(position int, normalizedQuery string, words map[string
 	}
 
 	return bonus + coverageBonus*coverage
+}
+
+// namedBy reports whether the query names the tool: its words include one of the name's forms consecutively, or one
+// query word is a form typed without separators. Words match whole, so "budget issue" does not name get_issue. A
+// shortened form must keep two words, or any query mentioning "search" would name jira_search. The words of the shared
+// prefix may also appear elsewhere in the query, so "get a Jira issue" names jira_get_issue.
+func (n *coreName) namedBy(named nameQuery) bool {
+	for _, run := range n.runs {
+		if containsRun(named.run, run) {
+			return true
+		}
+	}
+
+	for form := range n.joined {
+		if named.words[form] {
+			return true
+		}
+	}
+
+	if len(n.stripped) == 0 || len(n.terms) < 2 {
+		return false
+	}
+
+	run := slices.DeleteFunc(slices.Clone(named.run), func(word string) bool { return n.stripped[word] })
+
+	return containsRun(run, n.terms)
 }
 
 // literalTerms returns the stemmed content words the query itself contains, without synonyms or hints.
