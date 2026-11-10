@@ -503,6 +503,7 @@ directories listed in `SSL_CERT_DIR`. Mounting the CA into a directory of its ow
 therefore adds the CA without replacing the bundle.
 
 Stdio servers inherit `SSL_CERT_FILE`, `SSL_CERT_DIR`, `NODE_EXTRA_CA_CERTS` and `NODE_USE_SYSTEM_CA` from the daemon.
+OpenSSL-based servers, such as Python's, replace their own trust store with `SSL_CERT_FILE` and `SSL_CERT_DIR` too.
 Node.js servers need `NODE_EXTRA_CA_CERTS` naming the CA file; pass other runtimes' variables through the server's
 `env`.
 
@@ -538,8 +539,13 @@ An image derived from `minimal` can add the CA to Alpine's bundle instead, which
 when `NODE_USE_SYSTEM_CA=1` is set:
 
 ```dockerfile
+# x-release-please-start-version
+FROM ghcr.io/steelshot/mcp-compendium/minimal:0.3.0
+# x-release-please-end
+USER root
 COPY corporate.pem /usr/local/share/ca-certificates/corporate.crt
 RUN apk add --no-cache ca-certificates && update-ca-certificates
+USER 65532:65532
 ```
 
 ## Contributing
@@ -583,10 +589,20 @@ There is no compatibility layer; the move is a one-off edit of the server defini
 
 Then:
 
-1. Run `mcpcd config validate`. It reports every problem at once, including unset variables and YAML values that need
-   quoting, such as descriptions containing `: `.
-2. Create the secrets, start the unit, and run `podman exec mcp-compendium /usr/local/bin/mcpcd status` until no server
-   is `connecting`.
+1. Create the secrets and validate the configuration in the image, with the unit's configuration mount and one
+   `--secret` for each of its `Secret=` lines, so that every placeholder resolves as it will in the unit:
+
+   ```bash
+   podman run --rm --secret github-token,type=env,target=GITHUB_TOKEN \
+     -v ~/.config/mcp-compendium:/etc/mcp-compendium:ro,Z \
+     ghcr.io/steelshot/mcp-compendium/distroless:latest config validate
+   ```
+
+   It reports the problems in every file at once, such as unset variables. A YAML syntax error stops the checks of its
+   file: `mapping values are not allowed in this context` usually means an unquoted value containing `: `, such as a
+   description; quote it.
+2. Start the unit. `podman exec mcp-compendium /usr/local/bin/mcpcd healthcheck --ready --wait 60s` returns once every
+   server has been tried, and `mcpcd status` then shows any server that is not `connected`.
 3. Sign in to each OAuth server, and point clients at `/mcp`, renaming the tools in their allow-lists.
 4. Remove the old unit, its state volume and `.env`.
 
