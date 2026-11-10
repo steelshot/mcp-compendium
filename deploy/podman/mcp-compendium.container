@@ -1,0 +1,33 @@
+[Unit]
+Description=MCP Compendium
+
+[Container]
+ContainerName=mcp-compendium
+# Use the minimal image, or one derived from it, for stdio servers.
+Image=ghcr.io/steelshot/mcp-compendium/distroless:latest
+AutoUpdate=registry
+# Only this host can reach the daemon, which is why the configuration allows anonymous access.
+PublishPort=127.0.0.1:8080:8080
+Volume=%h/.config/mcp-compendium:/etc/mcp-compendium:ro,Z
+Volume=mcp-compendium-state:/var/lib/mcp-compendium
+Secret=github-token,type=env,target=GITHUB_TOKEN
+# Lets agents show sign-in links for servers that need OAuth.
+Environment=MCP_COMPENDIUM_PUBLIC_URL=http://127.0.0.1:8080
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=ALL
+# The JSON array (exec form) is required: Podman runs any other value with /bin/sh, which the image does not have.
+HealthCmd=["/usr/local/bin/mcpcd", "healthcheck"]
+HealthInterval=30s
+HealthTimeout=10s
+HealthRetries=3
+HealthStartPeriod=10s
+HealthOnFailure=kill
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

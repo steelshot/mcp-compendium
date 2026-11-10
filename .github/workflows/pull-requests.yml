@@ -1,7 +1,7 @@
 name: Pull Requests
 
-# Checks run only for the areas a pull request changes: code, images and the Helm chart. Workflows and licence
-# information are always checked, and changes to this workflow or .goreleaser.yaml run everything.
+# Checks run only for the areas a pull request changes: code, images, the Helm chart and the Podman unit. Workflows and
+# licence information are always checked, and changes to this workflow or .goreleaser.yaml run everything.
 #
 # "All checks" is the required status check; it passes when every job succeeded or was skipped.
 
@@ -41,6 +41,7 @@ jobs:
       code: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.pipeline == 'true' }}
       images: ${{ steps.filter.outputs.images == 'true' || steps.filter.outputs.pipeline == 'true' }}
       helm: ${{ steps.filter.outputs.helm == 'true' || steps.filter.outputs.pipeline == 'true' }}
+      podman: ${{ steps.filter.outputs.podman == 'true' || steps.filter.outputs.pipeline == 'true' }}
     steps:
       - name: Classify the changed files
         id: filter
@@ -58,6 +59,10 @@ jobs:
               - "images/**"
             helm:
               - "helm/**"
+              - "schema/**"
+              - "internal/config/**"
+            podman:
+              - "deploy/podman/**"
               - "schema/**"
               - "internal/config/**"
             pipeline:
@@ -336,10 +341,48 @@ jobs:
           image_args="--set=image.fullRepository=localhost/mcp-compendium/distroless --set-string=image.tag=ci"
           ct install --charts helm --helm-extra-set-args "${image_args} --set=image.pullPolicy=Never --set=auth.allowAnonymous=true"
 
+  podman:
+    name: Podman unit
+    needs: changes
+    if: needs.changes.outputs.podman == 'true'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Check the unit file
+        # network-online.target has no effect in a user unit; Quadlet adds its own wait to the generated service.
+        run: |
+          if grep -En '^(Wants|After|Requires)=.*network-online\.target' deploy/podman/mcp-compendium.container; then
+            echo "::error file=deploy/podman/mcp-compendium.container::remove the network-online.target dependency"
+            exit 1
+          fi
+      - name: Check the service Quadlet generates
+        # Podman runs a health command that is not a JSON array with /bin/sh, which the distroless image does not have.
+        run: |
+          podman --version
+          service=$(QUADLET_UNIT_DIRS="$PWD/deploy/podman" /usr/libexec/podman/quadlet -dryrun -user)
+          printf '%s\n' "$service"
+          if ! grep -Eq -- '--health-cmd "?\[' <<<"$service"; then
+            echo "::error file=deploy/podman/mcp-compendium.container::HealthCmd must be a JSON array (exec form)"
+            exit 1
+          fi
+      - name: Validate the example configuration
+        env:
+          GITHUB_TOKEN: placeholder-for-validation
+        run: go run ./cmd/mcpcd config validate deploy/podman/config.yaml
+
   all:
     name: All checks
     if: always()
-    needs: [ changes, workflows, lint, test, generated, vulnerabilities, binaries, images, chart ]
+    needs: [ changes, workflows, lint, test, generated, vulnerabilities, binaries, images, chart, podman ]
     runs-on: ubuntu-26.04
     permissions: { }
     steps:
@@ -347,4 +390,4 @@ jobs:
         uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}
-          allowed-skips: lint, test, generated, vulnerabilities, binaries, images, chart
+          allowed-skips: lint, test, generated, vulnerabilities, binaries, images, chart, podman

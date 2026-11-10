@@ -119,61 +119,20 @@ nor `serviceAccount.automount` is then needed.
 ## Podman
 
 A rootless [Quadlet](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html) unit runs the daemon as a
-user service. Quadlet makes it wait until the network is online (Podman 5.3 or later); `network-online.target` itself
-has no effect in user units. Save it as `~/.config/containers/systemd/mcp-compendium.container`:
+user service: [`deploy/podman/mcp-compendium.container`](../deploy/podman/mcp-compendium.container), with an example
+configuration, [`deploy/podman/config.yaml`](../deploy/podman/config.yaml), that serves GitHub's MCP server to agents on
+this host. Comments in both explain what to change. Quadlet makes the unit wait until the network is online (Podman 5.3
+or later); `network-online.target` itself has no effect in user units, and the health check must stay in exec form, as
+the image has no shell. Install both from the release you run:
 
-```ini
-[Unit]
-Description=MCP Compendium
-
-[Container]
-ContainerName=mcp-compendium
-# Use the minimal image, or one derived from it, for stdio servers.
-Image=ghcr.io/steelshot/mcp-compendium/distroless:latest
-AutoUpdate=registry
-# Only this host can reach the daemon, which is why the configuration allows anonymous access.
-PublishPort=127.0.0.1:8080:8080
-Volume=%h/.config/mcp-compendium:/etc/mcp-compendium:ro,Z
-Volume=mcp-compendium-state:/var/lib/mcp-compendium
-Secret=github-token,type=env,target=GITHUB_TOKEN
-# Lets agents show sign-in links for servers that need OAuth.
-Environment=MCP_COMPENDIUM_PUBLIC_URL=http://127.0.0.1:8080
-ReadOnly=true
-NoNewPrivileges=true
-DropCapability=ALL
-# The JSON array (exec form) is required: Podman runs any other value with /bin/sh, which the image does not have.
-HealthCmd=["/usr/local/bin/mcpcd", "healthcheck"]
-HealthInterval=30s
-HealthTimeout=10s
-HealthRetries=3
-HealthStartPeriod=10s
-HealthOnFailure=kill
-
-[Service]
-Restart=always
-RestartSec=5
-TimeoutStartSec=300
-
-[Install]
-WantedBy=default.target
-```
-
-and the configuration as `~/.config/mcp-compendium/config.yaml`:
-
-```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/steelshot/mcp-compendium/main/schema/config.schema.json
-servers:
-  github:
-    type: http
-    url: https://api.githubcopilot.com/mcp/
-    description: GitHub repositories, issues, pull requests and code search.
-    headers:
-      Authorization: Bearer ${env:GITHUB_TOKEN}
-    tools:
-      exclude: [ "*delete*" ]
-auth:
-  # The unit publishes the port on 127.0.0.1 only. Configure providers instead when other hosts can reach it.
-  allowAnonymous: true
+```bash
+# x-release-please-start-version
+version=0.3.0
+# x-release-please-end
+base="https://raw.githubusercontent.com/steelshot/mcp-compendium/v${version}/deploy/podman"
+mkdir -p ~/.config/containers/systemd ~/.config/mcp-compendium
+curl -fsSL "${base}/mcp-compendium.container" -o ~/.config/containers/systemd/mcp-compendium.container
+curl -fsSL "${base}/config.yaml" -o ~/.config/mcp-compendium/config.yaml
 ```
 
 Then create the secret, validate the configuration, and start the service. Validation runs in the image with the unit's

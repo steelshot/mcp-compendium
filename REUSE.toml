@@ -19,6 +19,7 @@ path = [
     "docs/*.md",
     ".github/**",
     "helm/**",
+    "deploy/**",
     "images/**",
     "schema/*.json",
     "internal/admin/gen/**",
