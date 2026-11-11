@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/steelshot/mcp-compendium/compare/v0.3.2...v0.3.3) (2026-11-11)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/crypto to v0.59.0 [security] ([#23](https://github.com/steelshot/mcp-compendium/issues/23)) ([249f3fc](https://github.com/steelshot/mcp-compendium/commit/249f3fc1c363f2f959a45b781021e0bb9c2f1804))
+
 ## [0.3.2](https://github.com/steelshot/mcp-compendium/compare/v0.3.1...v0.3.2) (2026-11-10)
 
 

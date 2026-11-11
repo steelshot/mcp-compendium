@@ -66,7 +66,7 @@ bundle.
 
 ```dockerfile
 # x-release-please-start-version
-FROM ghcr.io/steelshot/mcp-compendium/minimal:0.3.2
+FROM ghcr.io/steelshot/mcp-compendium/minimal:0.3.3
 # x-release-please-end
 USER root
 COPY corporate.pem /usr/local/share/ca-certificates/corporate.crt
