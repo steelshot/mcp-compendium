@@ -51,13 +51,13 @@ env:
 Stdio servers inherit `SSL_CERT_FILE`, `SSL_CERT_DIR`, `NODE_EXTRA_CA_CERTS` and `NODE_USE_SYSTEM_CA` from the daemon;
 pass any other variable through the server's `env`. Each TLS library uses them differently:
 
-| Client                                     | Trusts by default | Private CA                                                                                                     |
-|--------------------------------------------|-------------------|----------------------------------------------------------------------------------------------------------------|
-| Go                                         | The system bundle | As `mcpcd`                                                                                                     |
-| OpenSSL: Python's `ssl` and `urllib`, curl | The system bundle | `SSL_CERT_FILE` replaces the bundle; `SSL_CERT_DIR` replaces the directory, read only through hash-named links |
-| httpx, used by the MCP Python SDK          | certifi's bundle  | `SSL_CERT_FILE`, or else `SSL_CERT_DIR`, replaces it entirely                                                  |
-| Requests                                   | certifi's bundle  | `REQUESTS_CA_BUNDLE`, or else `CURL_CA_BUNDLE`, replaces it; set it in the server's `env`                      |
-| Node.js                                    | Its own CA list   | `NODE_EXTRA_CA_CERTS` adds a file; `NODE_USE_SYSTEM_CA=1` adds the system bundle, from Node.js 22.19 or 24.6   |
+| Client                                     | Trusts by default | Private CA                                                                                                                 |
+|--------------------------------------------|-------------------|----------------------------------------------------------------------------------------------------------------------------|
+| Go                                         | The system bundle | As `mcpcd`                                                                                                                 |
+| OpenSSL: Python's `ssl` and `urllib`, curl | The system bundle | `SSL_CERT_FILE` replaces the bundle; `SSL_CERT_DIR` replaces the directory, read only through hash-named links             |
+| httpx, used by the MCP Python SDK          | certifi's bundle  | `SSL_CERT_FILE`, or else `SSL_CERT_DIR`, replaces it entirely                                                              |
+| Requests                                   | certifi's bundle  | `REQUESTS_CA_BUNDLE`, or else `CURL_CA_BUNDLE`, replaces it; set it in the server's `env`                                  |
+| Node.js                                    | Its own CA list   | `NODE_EXTRA_CA_CERTS` adds a file; `NODE_USE_SYSTEM_CA=1` adds the system bundle, from Node.js 22.19 or 24.6, including 26 |
 
 A directory holding only the CA, as for remote servers, would leave httpx-based servers trusting nothing else. Give
 stdio servers one bundle with both the public CAs and the corporate one instead: add the CA to Alpine's bundle in an
@@ -76,7 +76,8 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
 USER 65532:65532
 ```
 
-Alpine's Node.js supports `NODE_USE_SYSTEM_CA`; for an older Node.js, set
+Alpine's own `nodejs` packages already use the system bundle; `NODE_USE_SYSTEM_CA=1` is for Node.js builds from
+nodejs.org, which carry their own CA list. For one older than 22.19 or 24.6, set
 `NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt` instead. A server using Requests also needs the bundle in its
 `env`:
 
