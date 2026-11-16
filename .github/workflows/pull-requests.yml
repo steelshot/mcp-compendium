@@ -21,7 +21,7 @@ env:
   # renovate: datasource=github-releases depName=zizmorcore/zizmor extractVersion=^v(?<version>.+)$
   ZIZMOR_VERSION: 1.32.0
   # renovate: datasource=github-releases depName=goreleaser/goreleaser
-  GORELEASER_VERSION: v2.20.1
+  GORELEASER_VERSION: v2.20.2
   # renovate: datasource=github-releases depName=helm/helm
   HELM_VERSION: v4.3.1
   # renovate: datasource=github-releases depName=helm/chart-testing extractVersion=^v(?<version>.+)$
