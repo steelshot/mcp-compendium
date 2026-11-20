@@ -1,5 +1,6 @@
 // Dependency updates. Pull request titles decide whether a merge is released:
-// - fix(deps): security fixes, Go patch releases and base images. Released as a patch; security fixes immediately.
+// - fix(deps): security fixes, Go patch releases and base images. Released as a patch: security fixes, labelled security,
+//   immediately; the rest with the next release.
 // - chore(deps): other Go modules and the helm test image. Not released.
 // - ci(deps): GitHub Actions and CI tools. Not released.
 // Routine updates are grouped per ecosystem, weekly, at least 3 days after their release, and merge once checks pass.

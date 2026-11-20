@@ -1,12 +1,16 @@
 name: Release
 
 # release-please maintains a release pull request for unreleased feat and fix changes. Merging it tags and publishes
-# the release; this workflow then adds the binaries, images and Helm chart, all signed and attested. Patch-only
-# release pull requests merge themselves once checks pass.
+# the release; this workflow then adds the binaries, images and Helm chart, all signed and attested. A patch release
+# pull request merges itself once checks pass if a pull request labelled security has merged since the last release,
+# or once it has been open for 14 days; other release pull requests wait for a maintainer.
 
 on:
   push:
     branches: [ main ]
+  # Daily, so that a patch release pull request merges once it is old enough without a push to main.
+  schedule:
+    - cron: "23 5 * * *"
 
 # Deny by default; each job grants only what it needs.
 permissions: { }
@@ -54,24 +58,41 @@ jobs:
           token: ${{ steps.app.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-      - name: Auto-merge patch release PRs
-        if: steps.release.outputs.pr
+      - name: Merge a patch release PR with a security fix, or one open for 14 days
+        if: ${{ !steps.release.outputs.release_created }}
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
-          PR: ${{ steps.release.outputs.pr }}
+          MAX_AGE_DAYS: 14
         run: |
           set -euo pipefail
-          number="$(jq -r .number <<< "$PR")"
-          next="$(jq -r .title <<< "$PR")"
+          pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --label "autorelease: pending" \
+            --json number,title,createdAt --jq 'first // empty')"
+          if [ -z "$pr" ]; then
+            echo "No release pull request is open."
+            exit 0
+          fi
+          number="$(jq -r .number <<< "$pr")"
+          next="$(jq -r .title <<< "$pr")"
           next="${next##* }"
           last="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)"
-          last="${last#v}"
-          if [ -n "$last" ] && [ "${next%.*}" = "${last%.*}" ]; then
-            echo "Release ${next} only bumps the patch version of ${last}; merging once checks pass."
-            gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --auto --squash
-          else
-            echo "Release ${next} after ${last:-nothing} waits for a maintainer to merge it."
+          current="${last#v}"
+          if [ -z "$last" ] || [ "${next%.*}" != "${current%.*}" ]; then
+            echo "Release ${next} after ${last:-nothing} is not a patch release; it waits for a maintainer."
+            exit 0
           fi
+          since="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${last}" --jq .commit.committer.date)"
+          security="$(gh pr list --repo "$GITHUB_REPOSITORY" --state merged --label security \
+            --search "merged:>=${since}" --json number --jq 'map("#\(.number)") | join(", ")')"
+          age_days=$(( ($(date +%s) - $(date -d "$(jq -r .createdAt <<< "$pr")" +%s)) / 86400 ))
+          if [ -n "$security" ]; then
+            echo "Release ${next} includes security fixes (${security}); merging once checks pass."
+          elif [ "$age_days" -ge "$MAX_AGE_DAYS" ]; then
+            echo "Release ${next} has been open for ${age_days} days; merging once checks pass."
+          else
+            echo "Release ${next} has no security fixes and has been open for ${age_days} of ${MAX_AGE_DAYS} days; it waits."
+            exit 0
+          fi
+          gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --auto --squash
 
   binaries:
     name: Binaries
