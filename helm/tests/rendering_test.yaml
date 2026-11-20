@@ -29,27 +29,17 @@ tests:
           path: data["auth.yaml"]
           pattern: '^auth:\n  allowAnonymous: true\n  providers: \[\]\n$'
 
-  - it: selects the image flavour by repository
-    template: templates/deployment.yaml
-    set:
-      image.flavour: minimal
-      image.tag: "1.2.3"
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: ghcr.io/steelshot/mcp-compendium/minimal:1.2.3
-
-  - it: defaults to the distroless flavour at the chart's appVersion
+  - it: defaults to the published image at the chart's appVersion
     template: templates/deployment.yaml
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
           pattern: '^ghcr\.io/steelshot/mcp-compendium/distroless:\d+\.\d+\.\d+$'
 
-  - it: uses a derived image as is
+  - it: uses an image built for stdio servers
     template: templates/deployment.yaml
     set:
-      image.fullRepository: registry.example/team/mcp-compendium-node
+      image.repository: registry.example/team/mcp-compendium-node
       image.tag: "7"
     asserts:
       - equal:

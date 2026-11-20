@@ -17,12 +17,6 @@
 				"tag": {
 					"type": "string"
 				},
-				"flavour": {
-					"enum": [
-						"distroless",
-						"minimal"
-					]
-				},
 				"digest": {
 					"type": "string",
 					"pattern": "^(|sha256:[a-f0-9]{64})$"
@@ -33,9 +27,6 @@
 						"IfNotPresent",
 						"Never"
 					]
-				},
-				"fullRepository": {
-					"type": "string"
 				}
 			}
 		},

@@ -1,14 +1,11 @@
 # yaml-language-server: $schema=values.schema.json
 
 image:
-  # The flavour is appended: ghcr.io/steelshot/mcp-compendium/distroless or .../minimal. Set fullRepository instead to
-  # use an image derived from minimal.
-  repository: ghcr.io/steelshot/mcp-compendium
-  fullRepository: ""
+  # The published image serves remote (http/sse) servers. For stdio servers, use an image that adds their runtime; see
+  # docs/DEPLOYMENT.md.
+  repository: ghcr.io/steelshot/mcp-compendium/distroless
   # Defaults to the chart's appVersion; "latest" follows the newest release.
   tag: ""
-  # distroless: remote (http/sse) servers only. minimal: Alpine, for stdio servers added in a derived image.
-  flavour: distroless
   # Pins the image by digest; takes precedence over tag.
   digest: ""
   pullPolicy: IfNotPresent

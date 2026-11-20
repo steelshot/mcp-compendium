@@ -92,7 +92,7 @@ touches:
 
 - **Go code**: golangci-lint, tests on Linux and Windows (x86_64 and arm64) and macOS, generated code and
   `go.mod` tidiness, govulncheck, and a cross-compiled snapshot release.
-- **`images/`**: both images, built from the pull request's binaries and smoke-tested.
+- **`Containerfile`**: the image, built from the pull request's binaries and smoke-tested.
 - **`helm/`**: chart-testing lint, helm-unittest, kubeconform schema validation, and an installation with `helm test` in a
   kind cluster, for each `helm/ci/*-values.yaml`.
 - **`deploy/podman/`**: the unit declares no `network-online.target` dependency, the service Quadlet generates from it

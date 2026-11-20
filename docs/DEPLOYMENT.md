@@ -19,52 +19,66 @@ verified, clear the quarantine flag:
 xattr -d com.apple.quarantine mcpcd
 ```
 
-## Container images
+## Container image
 
-Multi-architecture (amd64, arm64) OCI images are signed with Cosign and carry provenance and SBOM attestations:
-
-| Image                                         | Base                                                     | Use                                      |
-|-----------------------------------------------|----------------------------------------------------------|------------------------------------------|
-| `ghcr.io/steelshot/mcp-compendium/distroless` | `scratch`: the binary, CA certificates and timezone data | Remote (`http`/`sse`) servers only       |
-| `ghcr.io/steelshot/mcp-compendium/minimal`    | Alpine with tini                                         | Stdio servers you add in a derived image |
+The multi-architecture (amd64, arm64) OCI image `ghcr.io/steelshot/mcp-compendium/distroless` holds the `mcpcd` binary,
+CA certificates and timezone data on an empty base, and serves remote (`http`/`sse`) servers. It is signed with Cosign
+and carries provenance and SBOM attestations.
 
 | Tag                 | Follows                                                         |
 |---------------------|-----------------------------------------------------------------|
 | `X.Y.Z`, `X.Y`, `X` | A release, or the newest release of that minor or major version |
 | `latest`            | The newest release                                              |
 
-Both run as UID 65532 with a read-only root filesystem, read configuration from `/etc/mcp-compendium` and write state
-to `/var/lib/mcp-compendium`. The distroless image has no shell, so health checks and `podman exec` must run
-`/usr/local/bin/mcpcd` directly, in exec form. Base image updates are released as patch versions. The images contain
-no MCP servers, so their dependencies and vulnerabilities stay yours to choose. Derive from `minimal` to add them,
-pinning exact versions so rebuilds are reproducible:
+It runs as UID 65532 with a read-only root filesystem, reads configuration from `/etc/mcp-compendium` and writes state
+to `/var/lib/mcp-compendium`. It has no shell, so health checks and `podman exec` must run `/usr/local/bin/mcpcd`
+directly, in exec form.
+
+### Stdio servers
+
+Stdio servers run in the daemon's container, so their runtime has to be there too. Build an image on the runtime your
+servers need and copy `mcpcd` into it; which runtime, and keeping it patched, is then yours to choose. Pin exact versions
+so rebuilds are reproducible, and start `mcpcd` under an init such as tini, which reaps the processes that stdio
+servers leave behind:
 
 ```dockerfile
 # x-release-please-start-version
-FROM ghcr.io/steelshot/mcp-compendium/minimal:0.3.4
+FROM ghcr.io/steelshot/mcp-compendium/distroless:0.3.4 AS mcpcd
 # x-release-please-end
-USER root
-RUN apk add --no-cache nodejs npm && \
+
+FROM docker.io/library/node:24-alpine
+RUN apk add --no-cache tini && \
     npm install --global --omit=dev --no-audit --no-fund @modelcontextprotocol/server-filesystem@2.2.0 && \
     npm cache clean --force
+COPY --from=mcpcd /usr/local/bin/mcpcd /usr/local/bin/mcpcd
+COPY --from=mcpcd /etc/mcp-compendium /etc/mcp-compendium
+COPY --from=mcpcd --chown=65532:65532 /var/lib/mcp-compendium /var/lib/mcp-compendium
+ENV MCP_COMPENDIUM_LISTEN=:8080 \
+    MCP_COMPENDIUM_CONFIG=/etc/mcp-compendium \
+    MCP_COMPENDIUM_STATE_DIR=/var/lib/mcp-compendium
 USER 65532:65532
+EXPOSE 8080
+VOLUME /var/lib/mcp-compendium
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/mcpcd"]
+CMD ["serve"]
 ```
 
-[`images/distroless.Containerfile`](../images/distroless.Containerfile) and
-[`images/minimal.Containerfile`](../images/minimal.Containerfile) build the images from a published release rather than
-from source: they download the release archive for the target architecture and verify its checksums, and the build
-context is empty (see [`images/.containerignore`](../images/.containerignore)).
-`VERSION` selects the release and `RELEASES` a mirror of the release downloads:
+### Building the image
+
+The [`Containerfile`](../Containerfile) builds the image from a published release rather than from source: it downloads
+the release archive for the target architecture and verifies its checksums, and the build context is empty (see
+[`.containerignore`](../.containerignore)). `VERSION` selects the release and `RELEASES` a mirror of the release
+downloads:
 
 <!-- x-release-please-start-version -->
 ```bash
 podman build --format oci --platform linux/amd64,linux/arm64 --manifest localhost/mcp-compendium:0.3.4 \
-  --build-arg VERSION=0.3.4 -f images/distroless.Containerfile images
+  --build-arg VERSION=0.3.4 .
 ```
 <!-- x-release-please-end -->
 
 The same pattern suits air-gapped or secret-dependent builds: serve the archives from an internal `RELEASES` URL, or
-skip deriving an image entirely and mount configuration and secrets into the published one at runtime.
+mount configuration and secrets into the published image at runtime.
 
 ## Kubernetes
 
@@ -109,8 +123,8 @@ networkPolicy:
 
 Each entry in `servers` becomes its own file in the configuration directory; `existingConfigMap` replaces them all.
 The chart runs a single replica with the `Recreate` strategy, a persistent volume for tokens, restricted pod security
-and no Kubernetes API access. Configuration changes roll the pod. `image.flavour` selects `distroless` (the default)
-or `minimal`, and `image.fullRepository` points at a derived image. The image tag defaults to the chart's version. See
+and no Kubernetes API access. Configuration changes roll the pod. `image.repository` selects an image built for stdio
+servers. The image tag defaults to the chart's version. See
 [`values.yaml`](../helm/values.yaml) for every option.
 
 Some managed clusters publish a public OIDC issuer for service account tokens; use it as `issuer`, and neither `jwks`

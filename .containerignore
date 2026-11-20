@@ -1,0 +1,3 @@
+# The image is built from a published release; the build context is unused.
+*
+!.containerignore

@@ -35,13 +35,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end }}
 
-{{/* Image reference: <repository>/<flavour>, or fullRepository, with a digest or a tag. */}}
+{{/* Image reference: the repository with a digest or a tag. */}}
 {{- define "mcp-compendium.image" -}}
-{{- $repository := default (printf "%s/%s" .Values.image.repository .Values.image.flavour) .Values.image.fullRepository }}
 {{- if .Values.image.digest }}
-{{- printf "%s@%s" $repository .Values.image.digest }}
+{{- printf "%s@%s" .Values.image.repository .Values.image.digest }}
 {{- else }}
-{{- printf "%s:%s" $repository (default .Chart.AppVersion .Values.image.tag) }}
+{{- printf "%s:%s" .Values.image.repository (default .Chart.AppVersion .Values.image.tag) }}
 {{- end }}
 {{- end }}
 

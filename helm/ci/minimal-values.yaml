@@ -1,8 +1,0 @@
-# CI value set: the minimal flavour without persistence or a chart-managed service account.
-image:
-  flavour: minimal
-persistence:
-  enabled: false
-serviceAccount:
-  create: false
-  name: default

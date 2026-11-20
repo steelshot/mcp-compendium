@@ -1,6 +1,7 @@
-# Minimal image: Alpine with tini and the mcpcd binary. Derive from it to add stdio MCP servers; see docs/DEPLOYMENT.md.
+# The mcpcd binary, CA certificates and timezone data on an empty base, for remote (http and sse) MCP servers. Images
+# for stdio servers copy mcpcd from it onto the runtime their servers need; see docs/DEPLOYMENT.md.
 #
-#   podman build -f images/minimal.Containerfile --build-arg VERSION=0.1.0 -t mcp-compendium/minimal images
+#   podman build --build-arg VERSION=0.1.0 -t mcp-compendium .
 #
 # VERSION is a release version without the leading v. RELEASES may point at a mirror of the release downloads.
 
@@ -37,19 +38,24 @@ RUN set -eu; \
     mkdir -p /out; \
     tar -xJf "$(cat archive-name)" -C /out mcpcd
 
+RUN set -eu; \
+    mkdir -p /rootfs/etc/mcp-compendium /rootfs/var/lib/mcp-compendium /rootfs/tmp; \
+    chmod 1777 /rootfs/tmp; \
+    echo 'mcpcd:x:65532:65532:mcpcd:/var/lib/mcp-compendium:/sbin/nologin' > /rootfs/passwd; \
+    echo 'mcpcd:x:65532:' > /rootfs/group
+
 
 # Runtime stage.
-FROM docker.io/library/alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+FROM scratch
 
 ARG VERSION
 
-RUN apk add --no-cache tini
-
-RUN addgroup -S -g 65532 mcpcd && \
-    adduser -S -D -H -u 65532 -G mcpcd -h /var/lib/mcp-compendium -s /sbin/nologin mcpcd && \
-    install -d -o root -g root -m 0755 /etc/mcp-compendium && \
-    install -d -o mcpcd -g mcpcd -m 0700 /var/lib/mcp-compendium
-
+COPY --from=fetch /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=fetch /rootfs/passwd /etc/passwd
+COPY --from=fetch /rootfs/group /etc/group
+COPY --from=fetch /rootfs/etc/mcp-compendium /etc/mcp-compendium
+COPY --from=fetch --chown=65532:65532 /rootfs/var/lib/mcp-compendium /var/lib/mcp-compendium
+COPY --from=fetch /rootfs/tmp /tmp
 COPY --from=fetch /out/mcpcd /usr/local/bin/mcpcd
 
 ENV MCP_COMPENDIUM_LISTEN=:8080 \
@@ -60,13 +66,11 @@ USER 65532:65532
 EXPOSE 8080
 VOLUME /var/lib/mcp-compendium
 
-LABEL org.opencontainers.image.title="mcp-compendium minimal" \
+LABEL org.opencontainers.image.title="mcp-compendium" \
       org.opencontainers.image.description="Serve many MCP servers to AI agents as one compact, searchable endpoint." \
       org.opencontainers.image.source="https://github.com/steelshot/mcp-compendium" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
-      org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.base.name="docker.io/library/alpine:3.24"
+      org.opencontainers.image.version="${VERSION}"
 
-# tini reaps orphaned grandchildren of stdio servers, which mcpcd as PID 1 would leave as zombies.
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/mcpcd"]
+ENTRYPOINT ["/usr/local/bin/mcpcd"]
 CMD ["serve"]

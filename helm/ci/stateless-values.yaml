@@ -1,0 +1,6 @@
+# CI value set: without persistence or a chart-managed service account.
+persistence:
+  enabled: false
+serviceAccount:
+  create: false
+  name: default

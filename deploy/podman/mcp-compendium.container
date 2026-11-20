@@ -3,7 +3,7 @@ Description=MCP Compendium
 
 [Container]
 ContainerName=mcp-compendium
-# Use the minimal image, or one derived from it, for stdio servers.
+# For stdio servers, use an image that adds their runtime, built as in docs/DEPLOYMENT.md.
 Image=ghcr.io/steelshot/mcp-compendium/distroless:latest
 AutoUpdate=registry
 # Only this host can reach the daemon, which is why the configuration allows anonymous access.
