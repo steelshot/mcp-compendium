@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/steelshot/mcp-compendium/compare/v0.3.3...v0.3.4) (2026-11-20)
+
+
+### Bug Fixes
+
+* **downstream:** read the closed connection's error under the lock ([#32](https://github.com/steelshot/mcp-compendium/issues/32)) ([dca759b](https://github.com/steelshot/mcp-compendium/commit/dca759b51d3542d17aab1fcb5b4d633199a0886e))
+
 ## [0.3.3](https://github.com/steelshot/mcp-compendium/compare/v0.3.2...v0.3.3) (2026-11-11)
 
 
