@@ -288,13 +288,14 @@ func (c *conn) watch(session *mcp.ClientSession) {
 		return
 	}
 
+	closed := fmt.Errorf("connection closed: %w", orClosed(err))
 	c.session = nil
 	c.status = StatusUnavailable
-	c.lastErr = fmt.Errorf("connection closed: %w", orClosed(err))
+	c.lastErr = closed
 	c.retryAt = c.now()
 	c.mu.Unlock()
 
-	c.logger.Warn("connection closed", slog.String("error", c.lastErr.Error()))
+	c.logger.Warn("connection closed", slog.String("error", closed.Error()))
 	c.notify()
 }
 
