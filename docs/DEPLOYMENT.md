@@ -43,7 +43,7 @@ servers leave behind:
 
 ```dockerfile
 # x-release-please-start-version
-FROM ghcr.io/steelshot/mcp-compendium/distroless:0.3.4 AS mcpcd
+FROM ghcr.io/steelshot/mcp-compendium/distroless:0.4.0 AS mcpcd
 # x-release-please-end
 
 FROM docker.io/library/node:24-alpine
@@ -72,8 +72,8 @@ downloads:
 
 <!-- x-release-please-start-version -->
 ```bash
-podman build --format oci --platform linux/amd64,linux/arm64 --manifest localhost/mcp-compendium:0.3.4 \
-  --build-arg VERSION=0.3.4 .
+podman build --format oci --platform linux/amd64,linux/arm64 --manifest localhost/mcp-compendium:0.4.0 \
+  --build-arg VERSION=0.4.0 .
 ```
 <!-- x-release-please-end -->
 
@@ -141,7 +141,7 @@ the image has no shell. Install both from the release you run:
 
 ```bash
 # x-release-please-start-version
-version=0.3.4
+version=0.4.0
 # x-release-please-end
 base="https://raw.githubusercontent.com/steelshot/mcp-compendium/v${version}/deploy/podman"
 mkdir -p ~/.config/containers/systemd ~/.config/mcp-compendium

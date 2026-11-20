@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0](https://github.com/steelshot/mcp-compendium/compare/v0.3.4...v0.4.0) (2026-11-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* drop the minimal image; auto-release only security fixes ([#35](https://github.com/steelshot/mcp-compendium/issues/35))
+
+### Features
+
+* drop the minimal image; auto-release only security fixes ([#35](https://github.com/steelshot/mcp-compendium/issues/35)) ([62c1825](https://github.com/steelshot/mcp-compendium/commit/62c1825c5a0a0fbab4a78ec58d20ab377f4f4945))
+
 ## [0.3.4](https://github.com/steelshot/mcp-compendium/compare/v0.3.3...v0.3.4) (2026-11-20)
 
 
