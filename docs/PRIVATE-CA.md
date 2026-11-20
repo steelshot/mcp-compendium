@@ -6,7 +6,7 @@ its own connections with its own TLS library, which has to trust the CA too.
 
 ## How mcpcd finds certificate authorities
 
-On Linux and in the images, `mcpcd` reads one bundle file (`/etc/ssl/certs/ca-certificates.crt` in the images, or the
+On Linux and in containers, `mcpcd` reads one bundle file (`/etc/ssl/certs/ca-certificates.crt` in the image, or the
 file `SSL_CERT_FILE` names) and then every PEM file in the directories listed in `SSL_CERT_DIR`. A directory holding
 only the CA therefore adds it without replacing the bundle.
 
@@ -60,20 +60,15 @@ pass any other variable through the server's `env`. Each TLS library uses them d
 | Node.js                                    | Its own CA list   | `NODE_EXTRA_CA_CERTS` adds a file; `NODE_USE_SYSTEM_CA=1` adds the system bundle, from Node.js 22.19 or 24.6, including 26 |
 
 A directory holding only the CA, as for remote servers, would leave httpx-based servers trusting nothing else. Give
-stdio servers one bundle with both the public CAs and the corporate one instead: add the CA to Alpine's bundle in an
-image derived from `minimal`, and name that bundle so that certifi-based clients use it too. `mcpcd` reads the same
-bundle.
+stdio servers one bundle with both the public CAs and the corporate one instead: add the CA to the system bundle of the
+image you build for them (see [Stdio servers](DEPLOYMENT.md#stdio-servers)), and name that bundle so that
+certifi-based clients use it too. `mcpcd` reads the same bundle. On an Alpine-based image, before `USER 65532:65532`:
 
 ```dockerfile
-# x-release-please-start-version
-FROM ghcr.io/steelshot/mcp-compendium/minimal:0.3.4
-# x-release-please-end
-USER root
 COPY corporate.pem /usr/local/share/ca-certificates/corporate.crt
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
     NODE_USE_SYSTEM_CA=1
-USER 65532:65532
 ```
 
 Alpine's own `nodejs` packages already use the system bundle; `NODE_USE_SYSTEM_CA=1` is for Node.js builds from

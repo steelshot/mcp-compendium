@@ -1,4 +1,4 @@
-mcp-compendium {{ .Chart.AppVersion }} ({{ .Values.image.flavour }}) is running.
+mcp-compendium {{ .Chart.AppVersion }} is running.
 
 MCP endpoint for agents, from inside the cluster:
 

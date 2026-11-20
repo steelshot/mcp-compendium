@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are released for the newest minor version only. Container images tagged `latest` always point to the
+Security fixes are released for the newest minor version only. The container image tagged `latest` always points to the
 newest release.
 
 ## Reporting a vulnerability
@@ -18,8 +18,8 @@ the release notes and a GitHub security advisory that credits the reporter unles
 
 ## Verifying releases
 
-Release checksums, container images and the Helm chart are signed with Cosign (keyless, from this repository's GitHub
-Actions); archives, images and the chart carry build provenance, and images SBOM attestations too. Each release also
+Release checksums, the container image and the Helm chart are signed with Cosign (keyless, from this repository's GitHub
+Actions); archives, the image and the chart carry build provenance, and the image an SBOM attestation too. Each release also
 includes its provenance as `mcp-compendium-<version>.intoto.jsonl` and the signature of `checksums.txt` as
 `checksums.txt.sigstore.json`, for offline verification:
 

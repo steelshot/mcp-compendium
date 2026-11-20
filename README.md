@@ -81,7 +81,7 @@ Point the agent at `http://127.0.0.1:8080/mcp`. For example, in GitHub Copilot C
 ```
 
 Binaries for Linux, macOS and Windows are attached to each [release](https://github.com/steelshot/mcp-compendium/releases),
-together with a cosign-signed checksum file; container images, a Helm chart and a Podman unit are described in
+together with a cosign-signed checksum file; a container image, a Helm chart and a Podman unit are described in
 [Deployment](docs/DEPLOYMENT.md).
 
 ## Documentation
@@ -92,7 +92,7 @@ together with a cosign-signed checksum file; container images, a Helm chart and 
 | [Authentication](docs/AUTHENTICATION.md)              | Who may use the daemon: JWT, bearer and basic providers, and the `user`/`admin` roles |
 | [Signing in to OAuth servers](docs/OAUTH.md)          | Sign-in links from agents, `mcpcd login`, and pre-registered OAuth clients            |
 | [Command line](docs/CLI.md)                           | Every `mcpcd` command, the admin API, and the health endpoints                        |
-| [Deployment](docs/DEPLOYMENT.md)                      | Binaries, container images, the Helm chart, and a Podman Quadlet unit                 |
+| [Deployment](docs/DEPLOYMENT.md)                      | Binaries, the container image, the Helm chart, and a Podman Quadlet unit              |
 | [Private certificate authorities](docs/PRIVATE-CA.md) | Trusting a corporate CA with Podman, Kubernetes or a derived image                    |
 | [Releases](docs/RELEASES.md)                          | Versioning, and how releases are made                                                 |
 

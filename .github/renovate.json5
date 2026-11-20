@@ -1,5 +1,7 @@
 // Dependency updates. Pull request titles decide whether a merge is released:
-// - fix(deps): security fixes, Go patch releases and base images. Released as a patch; security fixes immediately.
+// - fix(deps): security fixes, Go patch releases and the base image. Released as a patch: straight away when govulncheck
+//   finds a called vulnerability in the last release that main no longer has, otherwise when a maintainer merges the
+//   release pull request.
 // - chore(deps): other Go modules and the helm test image. Not released.
 // - ci(deps): GitHub Actions and CI tools. Not released.
 // Routine updates are grouped per ecosystem, weekly, at least 3 days after their release, and merge once checks pass.
@@ -20,7 +22,7 @@
 	],
 	includePaths: [
 		"go.mod",
-		"images/*.Containerfile",
+		"Containerfile",
 		"helm/values.yaml",
 		".github/workflows/*.yml"
 	],
@@ -105,7 +107,7 @@
 			rangeStrategy: "bump",
 		},
 		{
-			description: "Go patch releases (often security fixes): straight away, auto-merged, and released as fix(deps)",
+			description: "Go patch releases (often security fixes): straight away and auto-merged, as fix(deps)",
 			matchDatasources: [
 				"golang-version"
 			],
@@ -132,7 +134,7 @@
 			automerge: false,
 		},
 		{
-			description: "Base images of the Containerfiles ship in the images, so they are released as fix(deps)",
+			description: "The image ships the base image's CA certificates, so its updates are released as fix(deps)",
 			matchManagers: [
 				"dockerfile"
 			],

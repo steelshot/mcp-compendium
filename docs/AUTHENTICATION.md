@@ -41,7 +41,7 @@ auth:
 ```
 
 Basic users are configured with a bcrypt hash of their password, never the password itself. Create one with
-`printf %s "$PASSWORD" | mcpcd config hash-password` (the container images include `mcpcd`), or `htpasswd -nbBC 12 ''
+`printf %s "$PASSWORD" | mcpcd config hash-password` (the container image includes `mcpcd`), or `htpasswd -nbBC 12 ''
 "$PASSWORD" | cut -d: -f2`. The daemon remembers successful checks for a few minutes, so clients that send credentials
 with every request pay the bcrypt cost only occasionally.
 

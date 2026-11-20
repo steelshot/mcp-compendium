@@ -1,6 +1,6 @@
 name: Pull Requests
 
-# Checks run only for the areas a pull request changes: code, images, the Helm chart and the Podman unit. Workflows and
+# Checks run only for the areas a pull request changes: code, the image, the Helm chart and the Podman unit. Workflows and
 # licence information are always checked, and changes to this workflow or .goreleaser.yaml run everything.
 #
 # "All checks" is the required status check; it passes when every job succeeded or was skipped.
@@ -39,7 +39,7 @@ jobs:
       pull-requests: read # list the pull request's files
     outputs:
       code: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.pipeline == 'true' }}
-      images: ${{ steps.filter.outputs.images == 'true' || steps.filter.outputs.pipeline == 'true' }}
+      image: ${{ steps.filter.outputs.image == 'true' || steps.filter.outputs.pipeline == 'true' }}
       helm: ${{ steps.filter.outputs.helm == 'true' || steps.filter.outputs.pipeline == 'true' }}
       podman: ${{ steps.filter.outputs.podman == 'true' || steps.filter.outputs.pipeline == 'true' }}
     steps:
@@ -55,8 +55,9 @@ jobs:
               - .golangci.yaml
               - openapi.yaml
               - "schema/**"
-            images:
-              - "images/**"
+            image:
+              - Containerfile
+              - .containerignore
             helm:
               - "helm/**"
               - "schema/**"
@@ -188,7 +189,7 @@ jobs:
   binaries:
     name: Binaries
     needs: changes
-    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.images == 'true' || needs.changes.outputs.helm == 'true'
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.image == 'true' || needs.changes.outputs.helm == 'true'
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -219,14 +220,10 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  images:
-    name: Image (${{ matrix.flavour }})
+  image:
+    name: Image
     needs: [ changes, binaries ]
-    if: needs.changes.outputs.images == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        flavour: [ distroless, minimal ]
+    if: needs.changes.outputs.image == 'true'
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -243,19 +240,15 @@ jobs:
       - name: Enable arm64 emulation
         run: sudo apt-get update -qq && sudo apt-get install -y -qq qemu-user-binfmt
       - name: Build both architectures from a stand-in release host
-        env:
-          FLAVOUR: ${{ matrix.flavour }}
         run: |
           python3 -m http.server 8000 --bind 127.0.0.1 --directory releases > /dev/null 2>&1 &
           podman build --format oci --network host --platform linux/amd64,linux/arm64 \
-            --manifest "localhost/mcp-compendium/${FLAVOUR}:ci" -f "images/${FLAVOUR}.Containerfile" \
-            --build-arg "VERSION=${CI_VERSION}" --build-arg RELEASES=http://127.0.0.1:8000 images
+            --manifest localhost/mcp-compendium/distroless:ci \
+            --build-arg "VERSION=${CI_VERSION}" --build-arg RELEASES=http://127.0.0.1:8000 .
       - name: Smoke test
-        env:
-          FLAVOUR: ${{ matrix.flavour }}
         run: |
           set -euo pipefail
-          image="localhost/mcp-compendium/${FLAVOUR}:ci"
+          image=localhost/mcp-compendium/distroless:ci
           podman run --rm --platform linux/amd64 "$image" version
           podman run --rm --platform linux/arm64 "$image" version
           mkdir -p "$RUNNER_TEMP/config"
@@ -329,7 +322,7 @@ jobs:
         run: |
           python3 -m http.server 8000 --bind 127.0.0.1 --directory releases > /dev/null 2>&1 &
           podman build --format oci --network host --platform linux/amd64 -t localhost/mcp-compendium/distroless:ci \
-            -f images/distroless.Containerfile --build-arg "VERSION=${CI_VERSION}" --build-arg RELEASES=http://127.0.0.1:8000 images
+            --build-arg "VERSION=${CI_VERSION}" --build-arg RELEASES=http://127.0.0.1:8000 .
           # kind loads images by repository tag, which only the docker-archive format keeps.
           podman save --format docker-archive -o "$RUNNER_TEMP/image.tar" localhost/mcp-compendium/distroless:ci
       - name: Create a kind cluster
@@ -341,7 +334,7 @@ jobs:
           # The exposure value set renders an HTTPRoute, which needs the Gateway API definitions.
           kubectl apply --server-side \
             -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml"
-          image_args="--set=image.fullRepository=localhost/mcp-compendium/distroless --set-string=image.tag=ci"
+          image_args="--set=image.repository=localhost/mcp-compendium/distroless --set-string=image.tag=ci"
           ct install --charts helm --helm-extra-set-args "${image_args} --set=image.pullPolicy=Never --set=auth.allowAnonymous=true"
 
   podman:
@@ -385,7 +378,7 @@ jobs:
   all:
     name: All checks
     if: always()
-    needs: [ changes, workflows, lint, test, generated, vulnerabilities, binaries, images, chart, podman ]
+    needs: [ changes, workflows, lint, test, generated, vulnerabilities, binaries, image, chart, podman ]
     runs-on: ubuntu-26.04
     permissions: { }
     steps:
@@ -393,4 +386,4 @@ jobs:
         uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
         with:
           jobs: ${{ toJSON(needs) }}
-          allowed-skips: lint, test, generated, vulnerabilities, binaries, images, chart, podman
+          allowed-skips: lint, test, generated, vulnerabilities, binaries, image, chart, podman

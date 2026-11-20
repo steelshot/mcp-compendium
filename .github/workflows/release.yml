@@ -1,12 +1,16 @@
 name: Release
 
 # release-please maintains a release pull request for unreleased feat and fix changes. Merging it tags and publishes
-# the release; this workflow then adds the binaries, images and Helm chart, all signed and attested. Patch-only
-# release pull requests merge themselves once checks pass.
+# the release; this workflow then adds the binaries, image and Helm chart, all signed and attested. A patch release
+# pull request merges itself once checks pass if it fixes a vulnerability that affects the last release; otherwise it
+# waits for a maintainer.
 
 on:
   push:
     branches: [ main ]
+  # Daily, for advisories published after their fix reached main, such as a Go release announced before its entries.
+  schedule:
+    - cron: "23 5 * * *"
 
 # Deny by default; each job grants only what it needs.
 permissions: { }
@@ -20,6 +24,8 @@ env:
   GORELEASER_VERSION: v2.20.2
   # renovate: datasource=github-releases depName=helm/helm
   HELM_VERSION: v4.3.2
+  # renovate: datasource=go depName=golang.org/x/vuln
+  GOVULNCHECK_VERSION: v1.10.0
   CHARTS: ghcr.io/${{ github.repository_owner }}/charts
 
 jobs:
@@ -37,6 +43,8 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       major: ${{ steps.release.outputs.major }}
       minor: ${{ steps.release.outputs.minor }}
+      pending-pr: ${{ steps.pending.outputs.pr }}
+      pending-since: ${{ steps.pending.outputs.since }}
     steps:
       - name: Get a GitHub App token
         id: app
@@ -54,24 +62,115 @@ jobs:
           token: ${{ steps.app.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-      - name: Auto-merge patch release PRs
-        if: steps.release.outputs.pr
+      - name: Find a patch release pull request whose Go code or modules changed
+        id: pending
+        if: ${{ !steps.release.outputs.release_created }}
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
-          PR: ${{ steps.release.outputs.pr }}
         run: |
           set -euo pipefail
-          number="$(jq -r .number <<< "$PR")"
-          next="$(jq -r .title <<< "$PR")"
+          # release-please's own output is empty when the pull request is unchanged, so look it up by its label.
+          pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --label "autorelease: pending" \
+            --json number,title --jq 'first // empty')"
+          if [ -z "$pr" ]; then
+            echo "No release pull request is open."
+            exit 0
+          fi
+          number="$(jq -r .number <<< "$pr")"
+          next="$(jq -r .title <<< "$pr")"
           next="${next##* }"
           last="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)"
-          last="${last#v}"
-          if [ -n "$last" ] && [ "${next%.*}" = "${last%.*}" ]; then
-            echo "Release ${next} only bumps the patch version of ${last}; merging once checks pass."
-            gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --auto --squash
-          else
-            echo "Release ${next} after ${last:-nothing} waits for a maintainer to merge it."
+          current="${last#v}"
+          if [ -z "$last" ] || [ "${next%.*}" != "${current%.*}" ]; then
+            echo "Release ${next} after ${last:-nothing} is not a patch release; it waits for a maintainer."
+            exit 0
           fi
+          # Only Go code, go.mod and go.sum can change what govulncheck reports.
+          if ! gh api "repos/${GITHUB_REPOSITORY}/compare/${last}...${GITHUB_SHA}" --paginate --jq '.files[].filename' |
+            grep -qE '^go\.(mod|sum)$|\.go$'; then
+            echo "Release ${next} changes no Go code or modules since ${last}; it waits for a maintainer."
+            exit 0
+          fi
+          echo "Release ${next} changes Go code or modules since ${last}; checking for fixed vulnerabilities."
+          echo "pr=${number}" >> "$GITHUB_OUTPUT"
+          echo "since=${last}" >> "$GITHUB_OUTPUT"
+
+  vulnerabilities:
+    name: Vulnerabilities fixed since the last release
+    needs: release-please
+    if: needs.release-please.outputs.pending-pr
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    outputs:
+      fixed: ${{ steps.compare.outputs.fixed }}
+    steps:
+      - name: Check out the last release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.pending-since }}
+          path: previous
+          persist-credentials: false
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: current
+          persist-credentials: false
+      # govulncheck reports standard library vulnerabilities for the Go that runs it, so each tree is scanned with the
+      # Go its go.mod requires. Only vulnerabilities in code the program calls count.
+      - name: Set up the last release's Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: previous/go.mod
+          cache: false
+      - name: Scan the last release
+        working-directory: previous
+        run: go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" -format json ./... > "$RUNNER_TEMP/previous.json"
+      - name: Set up main's Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: current/go.mod
+          cache: false
+      - name: Scan main
+        working-directory: current
+        run: go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" -format json ./... > "$RUNNER_TEMP/current.json"
+      - name: List the vulnerabilities main fixes
+        id: compare
+        run: |
+          set -euo pipefail
+          called() {
+            jq -rs '[.[] | select(.finding != null and .finding.trace[0].function != null) | .finding.osv] | unique[]' "$1"
+          }
+          fixed="$(comm -23 <(called "$RUNNER_TEMP/previous.json") <(called "$RUNNER_TEMP/current.json") | paste -sd ' ' -)"
+          echo "Called vulnerabilities in the last release: $(called "$RUNNER_TEMP/previous.json" | paste -sd ' ' -)"
+          echo "Fixed on main: ${fixed:-none}"
+          echo "fixed=${fixed}" >> "$GITHUB_OUTPUT"
+
+  merge-security-release:
+    name: Merge the release pull request for security fixes
+    needs: [ release-please, vulnerabilities ]
+    if: needs.vulnerabilities.outputs.fixed
+    runs-on: ubuntu-26.04
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - name: Get a GitHub App token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Merge once checks pass
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          PR: ${{ needs.release-please.outputs.pending-pr }}
+          FIXED: ${{ needs.vulnerabilities.outputs.fixed }}
+        run: |
+          echo "The release fixes ${FIXED}; merging #${PR} once checks pass."
+          gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --auto --squash
 
   binaries:
     name: Binaries
@@ -122,13 +221,9 @@ jobs:
           cp "$BUNDLE" "$RUNNER_TEMP/mcp-compendium-${VERSION}.intoto.jsonl"
           gh release upload "$TAG" "$RUNNER_TEMP/mcp-compendium-${VERSION}.intoto.jsonl" --repo "$GITHUB_REPOSITORY"
 
-  images:
-    name: Image (${{ matrix.flavour }})
+  image:
+    name: Image
     needs: [ release-please, binaries ]
-    strategy:
-      fail-fast: false
-      matrix:
-        flavour: [ distroless, minimal ]
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -136,14 +231,13 @@ jobs:
       id-token: write # OIDC token for Sigstore signing and attestations
       attestations: write # store attestations
     env:
-      FLAVOUR: ${{ matrix.flavour }}
       VERSION: ${{ needs.release-please.outputs.version }}
       TAGS: >-
         ${{ needs.release-please.outputs.version }}
         ${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}
         ${{ needs.release-please.outputs.major }}
         latest
-      REPOSITORY: ghcr.io/${{ github.repository }}/${{ matrix.flavour }}
+      REPOSITORY: ghcr.io/${{ github.repository }}/distroless
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -155,10 +249,10 @@ jobs:
       - name: Build from the published release
         run: |
           podman build --format oci --pull=always --platform linux/amd64,linux/arm64 \
-            --manifest "$REPOSITORY:build" -f "images/${FLAVOUR}.Containerfile" --build-arg "VERSION=${VERSION}" \
+            --manifest "$REPOSITORY:build" --build-arg "VERSION=${VERSION}" \
             --annotation "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
-            --annotation "org.opencontainers.image.licenses=AGPL-3.0-only" images
+            --annotation "org.opencontainers.image.licenses=AGPL-3.0-only" .
       - name: Smoke test
         run: |
           podman run --rm --platform linux/amd64 "$REPOSITORY:build" version
@@ -206,8 +300,8 @@ jobs:
 
   chart:
     name: Helm chart
-    # After the images, so the chart's image tag always exists.
-    needs: [ release-please, images ]
+    # After the image, so the chart's image tag always exists.
+    needs: [ release-please, image ]
     runs-on: ubuntu-26.04
     permissions:
       contents: read
